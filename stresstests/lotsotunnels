@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# make a shitton of tunnels using BOB.
+# BOB must be running
+#
+# you may wish to set the following options in bob.config.
+# I'm sure there's a way to set the options
+# by talking to BOB but the documentation on bob.i2p
+# isn't clear on the subject.
+#
+# inbound.length=1
+# outbound.length=0
+# inbound.lengthVariance=0
+# outbound.lengthVariance=0
+#
+# zzz 2009-02
+#
+BOBHOST=127.0.0.1
+BOBPORT=2827
+STARTPORT=50000
+QUANTITY=100
+let ENDPORT=$STARTPORT+$QUANTITY
+let i=$STARTPORT
+
+while [ "$i" -ne "$ENDPORT" ]
+do
+	echo setnick test$i
+	echo newkeys
+	echo inhost 127.0.0.1
+	echo inport $i
+	echo start
+	#sleep 10
+	let i=$i+1
+done | netcat $BOBHOST $BOBPORT
+
+let i=$STARTPORT
+
+while [ "$i" -ne "$ENDPORT" ]
+do
+	echo getnick test$i
+	echo stop
+	let i=$i+1
+done | netcat $BOBHOST $BOBPORT
