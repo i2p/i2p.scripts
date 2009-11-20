@@ -1,0 +1,48 @@
+#
+# viewmtn.py pipe for slow CGI
+# feed missing icons too
+# grep out Content-Disposition so the user can view the file
+# convert Content-Type: text/x-diff to text/plain?
+# zzz 1/08
+#
+# for testing
+#
+if [ $# -eq 1 ]
+then
+	PATH_INFO=$1
+fi
+#
+if [ "$PATH_INFO" = "/mimeicon/inode/directory" ]
+then
+	echo -e "Content-Type: image/gif\r"; echo -e "\r"
+	cat ../docroot/icons/folder.gif
+	exit 0
+fi
+#
+if [ "$PATH_INFO" = "/mimeicon/text/plain" ]
+then
+	echo -e "Content-Type: image/gif\r"; echo -e "\r"
+	cat ../docroot/icons/text.gif
+	exit 0
+fi
+#
+if [ "$PATH_INFO" != "${PATH_INFO#/revision/tar/}" ]
+then
+	echo -e "Status: 403 Denied\r"; echo -e "\r"; echo -e '.tar downloads disabled'
+	exit 0
+fi
+#
+PATH_INFO=${PATH_INFO:-/}
+REQUEST_METHOD=${REQUEST_METHOD:-HEAD}
+T=${PATH_INFO%/rss}
+if [ "$T" != "$PATH_INFO" ]
+then
+#	(echo -e "$REQUEST_METHOD $PATH_INFO HTTP/1.0\r"; echo -e "\r") | netcat localhost 8081 | sed -e 's/<br \/>/\&lt;br \/\&gt;/g' | sed -e 's/ GMT<\/pubDate>/ +0000<\/pubDate>/g'
+#	(echo -e "$REQUEST_METHOD $PATH_INFO HTTP/1.0\r"; echo -e "\r") | netcat localhost 8081 | sed -e 's/ GMT<\/pubDate>/ +0000<\/pubDate>/g'
+	(echo -e "$REQUEST_METHOD $PATH_INFO HTTP/1.0\r"; echo -e "\r") | netcat localhost 8081
+else
+#
+# -a treat binary files (images) as text
+#
+	(echo -e "$REQUEST_METHOD $PATH_INFO HTTP/1.0\r"; echo -e "\r") | netcat localhost 8081 | grep -a -v '^Content-Disposition:'
+fi

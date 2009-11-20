@@ -52,14 +52,14 @@ sub printhosts
 				my $hash=sha256($decoded);
                                 my $hexhash = sha256_hex($decoded);
 				my $encoded = encode_base32($hash);
-				print "#" . $name . " FD87:D87E:EB43";
+				print "#" . $name . " FD60:DB4D:DDB5";
 				for (my $i = 0; $i < 20; $i += 4) {
 					#printf(":%.2x%.2x", substr($hash, $i, 1), substr($hash, $i+1, 1));
 					printf(":%s", substr($hexhash, $i, 4));
 				}
 				print " " . $encoded . ".b32.i2p\n";
 				# print $encoded . ".b32.i2p=" . $hosthash->{$name} . "\n";
-				print substr($encoded, 0, 16) . ".onion=" . $hosthash->{$name} . "\n";
+				print substr($encoded, 0, 16) . ".oc.b32.i2p=" . $hosthash->{$name} . "\n";
 
 	}
 	return 0;

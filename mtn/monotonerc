@@ -1,0 +1,18 @@
+-- This implements a list of trusted signers.
+-- It is used on checkout and update.
+-- It is not used for repo sync/push/pull.
+-- If you do not include this function in ~/.monotone/monotonerc, the
+-- default is to trust everybody, which is probably a bad thing
+-- in an anonymous network.
+-- Update the list below to reflect the signers YOU trust.
+
+function get_revision_cert_trust(signers, id, name, val)
+   local trusted_signers = { "complication@mail.i2p", "zzz@mail.i2p", "dev@welterde.de",
+          "Oldaris@mail.i2p", "sponge@mail.i2p", "dream@mail.i2p", "mathiasdm@mail.i2p",
+          "mkvore-commit@mail.i2p", "z3d@mail.i2p", "cervantes@mail.i2p", "BlubMail@mail.i2p",
+          "walking@mail.i2p", "neutron@mail.i2p" }
+   local t = intersection(signers, trusted_signers)
+   if t == nil then return false end
+   if table.getn(t) >= 1 then return true end
+   return false
+end
