@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# note that this will fail on any cert problems, including
+# expired, selfsigned, or CA not in the java cacerts file.
+#
+# use the following line instead to see cert debug output
+#
+#java -Djava.security.debug=certpath -Djavax.net.debug=trustmanager -cp $I2P/lib/i2p.jar net.i2p.util.SSLEepGet "$@"
+#
+java -cp $I2P/lib/i2p.jar net.i2p.util.SSLEepGet "$@"
