@@ -2,13 +2,15 @@
 #
 #  basic packaging up of a plugin
 #
+#  usage: makeplugin.sh plugindir
+#
 #  zzz 2010-02
 #
 PUBKEYFILE=$PWD/public-signing.key
 PRIVKEYFILE=$PWD/private-signing.key
-
+ 
 # put your files in here
-PLUGINDIR=plugin
+PLUGINDIR=${1:-plugin}
 
 PC=plugin.config
 PCT=${PC}.tmp
@@ -16,6 +18,7 @@ PCT=${PC}.tmp
 if [ ! -f $PRIVKEYFILE ]
 then
 	java -cp $I2P/lib/i2p.jar net.i2p.crypto.TrustedUpdate keygen $PUBKEYFILE $PRIVKEYFILE
+	rm -rf logs/
 	chmod 444 $PUBKEYFILE
 	chmod 400 $PRIVKEYFILE
 	echo "Created new keys: $PUBKEYFILE $PRIVKEYFILE"
@@ -24,7 +27,7 @@ fi
 rm -f plugin.zip
 if [ ! -d $PLUGINDIR ]
 then
-	echo "You must have a $PLUGIN directory"
+	echo "You must have a $PLUGINDIR directory"
 	exit 1
 fi
 
@@ -70,6 +73,7 @@ mv $PCT $PC
 grep -v '^key=' $PC > $PCT
 B64KEYFILE=b64key.tmp
 java -cp $I2P/lib/i2p.jar net.i2p.data.Base64 encode $PUBKEYFILE $B64KEYFILE
+rm -rf logs/
 B64KEY=`cat $B64KEYFILE`
 rm -f $B64KEYFILE
 echo "key=$B64KEY" >> $PCT
@@ -93,6 +97,7 @@ rm -f plugin.zip
 echo 'Verifying. ...'
 java -cp $I2P/lib/i2p.jar net.i2p.crypto.TrustedUpdate showversion $XPI2P
 java -cp $I2P/lib/i2p.jar -Drouter.trustedUpdateKeys=$B64KEY net.i2p.crypto.TrustedUpdate verifysig $XPI2P
+rm -rf logs/
 
 echo -n 'Plugin created: '
 wc -c $XPI2P
