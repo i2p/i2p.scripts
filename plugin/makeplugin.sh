@@ -6,8 +6,10 @@
 #
 #  zzz 2010-02
 #
-PUBKEYFILE=$PWD/public-signing.key
-PRIVKEYFILE=$PWD/private-signing.key
+PUBKEYDIR=$HOME/.i2p-plugin-keys
+PUBKEYFILE=$PUBKEYDIR/plugin-public-signing.key
+PRIVKEYFILE=$PUBKEYDIR/plugin-private-signing.key
+B64KEYFILE=$PUBKEYDIR/plugin-public-signing.txt
  
 # put your files in here
 PLUGINDIR=${1:-plugin}
@@ -17,9 +19,11 @@ PCT=${PC}.tmp
 
 if [ ! -f $PRIVKEYFILE ]
 then
+	mkdir -p $PUBKEYDIR
 	java -cp $I2P/lib/i2p.jar net.i2p.crypto.TrustedUpdate keygen $PUBKEYFILE $PRIVKEYFILE
+	java -cp $I2P/lib/i2p.jar net.i2p.data.Base64 encode $PUBKEYFILE $B64KEYFILE
 	rm -rf logs/
-	chmod 444 $PUBKEYFILE
+	chmod 444 $PUBKEYFILE $B64KEYFILE
 	chmod 400 $PRIVKEYFILE
 	echo "Created new keys: $PUBKEYFILE $PRIVKEYFILE"
 fi
@@ -31,6 +35,7 @@ then
 	exit 1
 fi
 
+OPWD=$PWD
 cd $PLUGINDIR
 
 if [ ! -f $PC ]
@@ -39,11 +44,11 @@ then
 	exit 1
 fi
 
-grep -q '^keyName=' $PC
+grep -q '^signer=' $PC
 if [ "$?" -ne "0" ]
 then
-	echo "You must have a key name in $PC"
-        echo 'For example keyName=joe@mail.i2p'
+	echo "You must have a signer in $PC"
+        echo 'For example signer=joe@mail.i2p'
 	exit 1
 fi
 
@@ -71,23 +76,19 @@ mv $PCT $PC
 
 # add our Base64 key
 grep -v '^key=' $PC > $PCT
-B64KEYFILE=b64key.tmp
-java -cp $I2P/lib/i2p.jar net.i2p.data.Base64 encode $PUBKEYFILE $B64KEYFILE
-rm -rf logs/
 B64KEY=`cat $B64KEYFILE`
-rm -f $B64KEYFILE
 echo "key=$B64KEY" >> $PCT
 mv $PCT $PC
 
 # zip it
-zip -r ../plugin.zip *
+zip -r $OPWD/plugin.zip *
 
 # get the version and use it for the sud header
 VERSION=`grep '^version=' $PC | cut -f 2 -d '='`
 # get the name and use it for the file name
 NAME=`grep '^name=' $PC | cut -f 2 -d '='`
 XPI2P=${NAME}.xpi2p
-cd ..
+cd $OPWD
 
 # sign it
 java -cp $I2P/lib/i2p.jar net.i2p.crypto.TrustedUpdate sign plugin.zip $XPI2P $PRIVKEYFILE $VERSION
