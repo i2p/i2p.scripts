@@ -1,0 +1,5 @@
+run shutdown-i2p.pl to shutdown i2p. 
+Add an argument of "restart" to just restart i2p.
+
+./shutdown-i2p.pl 
+./shutdown-i2p.pl restart
