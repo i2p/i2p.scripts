@@ -82,6 +82,7 @@ public class Shortcut extends HttpServlet {
         b32 = "http://" + b32 + ".b32.i2p";
         out.println("<p>Base64:<blockquote>"+b64+"</blockquote></p>");
         out.println("<p>Base32:<blockquote>"+b32+"</blockquote></p>");
+        out.println("<p>Click <a href=\"http://localhost:7657/susidns/addressbook.jsp?book=master&destination="+b64+"\">here</a> and fill in a name at the bottom to add this site to your addressbook!</p>");
         try { 
             Clipboard clip = Toolkit.getDefaultToolkit().getSystemClipboard();
             StringSelection s = new StringSelection(b32);
