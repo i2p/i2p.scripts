@@ -1,0 +1,2 @@
+netbeans this project, but mostly do "ant" then copy dist/login.war to
+your eepsite/webapps directory, after having enabled webapps in jetty.xml.
