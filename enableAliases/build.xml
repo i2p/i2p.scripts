@@ -74,7 +74,7 @@
     -->
 
   <!-- Create the War File -->
-  <target name="war" depends="compile">
+  <target name="-post-jar">
     <copy todir="${warDir}/WEB-INF/classes">
       <fileset dir="${build.classes.dir}" includes="**/*.class" /> 
     </copy>
