@@ -10,7 +10,6 @@
 <project name="enableAliases" default="default" basedir=".">
     <description>Builds, tests, and runs the project enableAliases.</description>
     <import file="nbproject/build-impl.xml"/>
-    <property name="warDir" value="${build.dir}/war"/>
     <!--
 
     There exist several targets which are by default empty and which can be 
@@ -75,6 +74,7 @@
 
   <!-- Create the War File -->
   <target name="-post-jar">
+    <property name="warDir" value="${build.dir}/war"/>
     <copy todir="${warDir}/WEB-INF/classes">
       <fileset dir="${build.classes.dir}" includes="**/*.class" /> 
     </copy>
