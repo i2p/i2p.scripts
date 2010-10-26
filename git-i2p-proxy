@@ -1,0 +1,44 @@
+#!/bin/sh
+
+WRAPPER=~/git-i2p-proxy
+
+if nc -h 2>&1 | grep BSD; then
+    echo You have the BSD netcat installed, yay!
+    echo
+else
+    echo ERROR Please install the fully featured BSD netcat first!
+    echo try sudo apt-get install netcat-openbsd
+    exit
+fi
+
+echo What port is an i2p SOCKS client tunnel listening on?
+read SOCKS
+
+if nc -z -n 127.0.0.1 $SOCKS; then
+    echo Port test responded yay.
+else
+    echo ERROR Nothing is listening at that port...
+    echo Start up an i2p SOCKS client tunnel and then run this script again.
+    echo http://localhost:7657/i2ptunnel/
+    exit
+fi
+
+echo Hit Ctrl-C now if you don\'t want git proxying everything through i2p for
+echo this user account! Hit Enter to install.
+
+read NOTHING
+
+echo -n Installing...
+
+cat >$WRAPPER <<EOF;
+#!/bin/sh
+exec nc -n -x127.0.0.1:$SOCKS -X5 \$*
+EOF
+
+chmod +x $WRAPPER
+
+git config --global core.gitProxy $WRAPPER
+
+echo done.
+echo Proxy wrapper has been installed and set up for this user account.
+  
