@@ -26,4 +26,5 @@
       <!-- Create war file and place in dist directory -->
       <jar jarfile="${dist.dir}/addresspublisher.war" basedir="${warDir}" />
     </target>
+    <target name="-javadoc-build" />
 </project>

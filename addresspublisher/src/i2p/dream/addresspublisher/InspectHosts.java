@@ -32,12 +32,16 @@ public class InspectHosts implements Runnable {
     static File getNames() {
         return new File(Configuration.getConfDir(),"names.index");
     }
+    static File getLastPos() {
+        return new File(Configuration.getConfDir(),"last_position");
+    }
+    
     Set<Integer> knownHosts = new HashSet<Integer>();
 
     /* The hosts.txt file doesn't change except the end. Hosts are added at the
      * end and not reordered or anything. Thus, hax!
      */
-    PersistentLong lastPos = new PersistentLong(getNames());
+    PersistentLong lastPos = new PersistentLong(getLastPos(),0);
 
     /**
      * @param args the command line arguments
@@ -46,7 +50,10 @@ public class InspectHosts implements Runnable {
         FileInputStream in = null;
         try {
             in = new FileInputStream(getNames());
-            in.getChannel().position(lastPos.get());
+            long lp = lastPos.get();
+            if(lp>0) {
+                in.getChannel().position(lp);
+            }
             BufferedReader r = new BufferedReader(
                     new InputStreamReader(in,Configuration.charset));
             for(;;) {
@@ -62,7 +69,7 @@ public class InspectHosts implements Runnable {
             if(in!=null) {
                 try {
                     lastPos.set(in.getChannel().position());
-                    lastPos.save(getNames());
+                    lastPos.save(getLastPos());
                     in.close();
                 } catch (IOException ex) {
                     Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
@@ -87,7 +94,9 @@ public class InspectHosts implements Runnable {
 
                 if(line.length()==0) continue;
 
-                String name = line.substring(0,line.indexOf("="))
+                int split = line.indexOf("=");
+                if(split==-1) continue;
+                String name = line.substring(0,split)
                         .replaceAll(" ", "")
                         .replaceAll("\t", "");
 
@@ -98,8 +107,8 @@ public class InspectHosts implements Runnable {
                 Record rec = RecordIndex.getInstance().newRecord();
                 rec.setName(name);
                 Destination address = new Destination();
-                try {
-                    address.fromBase64(line.substring(name.length() + 1));
+                try {                    
+                    address.fromBase64(line.substring(split + 1));
                 } catch (DataFormatException ex) {
                     Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
                     continue;

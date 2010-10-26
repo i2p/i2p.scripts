@@ -14,9 +14,9 @@ import java.util.Iterator;
 
 class RecordGetter implements Iterator<Record> {
 
-    int cur;
-    final int top;
-    RecordGetter(int top) {
+    long cur;
+    final long top;
+    RecordGetter(long top) {
         this.cur = top;
         this.top = top;
     }
@@ -39,11 +39,10 @@ class RecordGetter implements Iterator<Record> {
  * @author dream
  */
 class RecordIndex implements Iterable<Record> {
-    PersistentInteger top;
+    PersistentLong top;
 
     RecordIndex() throws IOException {
-        top = new PersistentInteger(indexFile());
-        
+        top = new PersistentLong(indexFile(),0);
     }
 
     private File indexFile() {
@@ -52,9 +51,10 @@ class RecordIndex implements Iterable<Record> {
 
     Record newRecord() throws IOException {
         synchronized (Record.class) {
-            top.set(top.get()+1);
+            long id = top.get();
+            top.set(id+1);
             top.save(indexFile());
-            return Record.get(top.get());
+            return Record.get(id);
         }
     }
 

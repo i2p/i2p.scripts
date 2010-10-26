@@ -17,7 +17,7 @@ public class Configuration {
 
     public static File getConfDir() {
         final File confDir = new File(I2PAppContext.getGlobalContext().getConfigDir(),
-            "addressbook");
+            "addressbook2");
         if(!confDir.exists())
             confDir.mkdirs();
         return confDir;

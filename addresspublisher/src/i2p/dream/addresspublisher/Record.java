@@ -22,7 +22,7 @@ import java.util.logging.Logger;
 import net.i2p.data.DataFormatException;
 
 
-class RecordCache extends LinkedHashMap<Integer,Record> {
+class RecordCache extends LinkedHashMap<Long,Record> {
     // the list of records that don't get collected immediately...
 
     private static final int MAX_ENTRIES = 10;
@@ -33,7 +33,7 @@ class RecordCache extends LinkedHashMap<Integer,Record> {
 
 
     @Override
-    protected boolean removeEldestEntry(Map.Entry<Integer,Record> eldest)
+    protected boolean removeEldestEntry(Map.Entry<Long,Record> eldest)
     {
         Record rec = eldest.getValue();
         try {
@@ -52,14 +52,15 @@ class RecordCache extends LinkedHashMap<Integer,Record> {
  * @author dream
  */
 class Record {
-    final int id;
+
+    final long id;
     private boolean needsLoad = true;
     private boolean readyToSave = false;
     private Date modified;
     private String name;
     private Destination address;
 
-    protected Record(int id) {
+    protected Record(long id) {
         this.id = id;
     }
 
@@ -81,7 +82,7 @@ class Record {
             }
             return;
         }
-        File location = new File(getRecordDir(),Integer.toHexString(id));
+        File location = new File(getRecordDir(),Long.toHexString(id));
         if(!location.exists()) {
             modified = new Date();
             name = null;
@@ -97,7 +98,7 @@ class Record {
             modified = (Date) o.readObject();
             name = (String) o.readObject();
             address = new Destination();
-            address.readBytes(o);
+            address.readBytes(in);
             needsLoad = false;
         } catch (IOException ex) {
             Logger.getLogger(Record.class.getName()).log(Level.SEVERE, null, ex);
@@ -123,14 +124,15 @@ class Record {
 
 
     void save() throws IOException, DataFormatException {
-        File location = new File(getRecordDir(),Integer.toHexString(id));
+        File location = new File(getRecordDir(),Long.toHexString(id));
         OutputStream out = null;
         try {
             out = new FileOutputStream(location);
             final ObjectOutputStream o = new ObjectOutputStream(out);
             o.writeObject(modified);
             o.writeObject(name);
-            address.writeBytes(o);
+            o.flush();
+            address.writeBytes(out);
             readyToSave = false;
         } finally {
             if(out!=null)
@@ -185,8 +187,8 @@ class Record {
         readyToSave = true;
     }
     
-    static RecordCache records;
-    static public Record get(int id) {
+    static RecordCache records = new RecordCache();
+    static public Record get(long id) {
         if(records.containsKey(id))
             return records.get(id);
         Record record = new Record(id);
@@ -208,6 +210,6 @@ class Record {
 
     @Override
     public int hashCode() {
-        return id;
+        return (int)id;
     }
 }
