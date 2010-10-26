@@ -1,10 +1,15 @@
-#!/bin/sh
-#
-#  this just does the b32 to b64 conversion, obviously you can't recover the
-#  dest from the hash, so this probably isn't what you want
-#
-echo ................decoding b32
-java -cp $I2P/lib/i2p.jar net.i2p.data.Base32 decode foo32.txt foo.bin
-echo ................encoding b32
-java -cp $I2P/lib/i2p.jar net.i2p.data.Base64 encode foo.bin foo64.txt
-cat foo64.txt
+#!/bin/bash
+
+if [ "$#" -lt 1 ]; then
+  echo "This script looks up an I2P destination by b32 address."
+  echo "If the destination is not found, "null" is printed."
+  echo
+  echo "Usage: $0 <b32>"
+  echo
+  echo "Do not include the .b32.i2p part at the end."
+  echo "If a dest is found, but no b64 dest is printed, try"
+  echo "building i2p.jar and using that instead of $I2P/lib/i2p.jar."
+  exit 1
+fi
+
+java -cp $I2P/lib/i2p.jar net.i2p.client.naming.LookupDest $1
