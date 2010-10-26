@@ -44,7 +44,8 @@ class RepeatedInspect extends Thread {
                 Logger.getLogger(RepeatedInspect.class.getName()).log(Level.SEVERE, null, ex);
             }
             try {
-                Thread.sleep(86400000);
+                // poll once an hour.
+                Thread.sleep(3600000);
             } catch (InterruptedException ex) {
                 Logger.getLogger(RepeatedInspect.class.getName()).log(Level.SEVERE, null, ex);
             }
