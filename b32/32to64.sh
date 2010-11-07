@@ -7,8 +7,6 @@ if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <b32>"
   echo
   echo "Do not include the .b32.i2p part at the end."
-  echo "If a dest is found, but no b64 dest is printed, try"
-  echo "building i2p.jar and using that instead of $I2P/lib/i2p.jar."
   exit 1
 fi
 
