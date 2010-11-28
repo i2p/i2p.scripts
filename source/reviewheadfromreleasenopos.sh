@@ -2,11 +2,15 @@
 # view the changes from the last release to the current head;
 # files not checked in are not included
 # Skip .po files and geoip.txt
+# Note that this actually diffs the workspace base (w:) not the head (h:)
 # zzz 2010-03
 #
-PREF=0.7.
-LAST=11
-REL=$PREF$LAST
+REL=`grep 'public final static String VERSION' core/java/src/net/i2p/CoreVersion.java | cut -d '"' -f2`
+if [ -z "$REL" ]
+then
+	echo "Cannot find current version"
+	exit 1
+fi
 
 MOREEXCLUDE="installer/resources/geoip.txt"
 
@@ -18,5 +22,5 @@ do
 done
 echo "excluding $EXCLUDE"
 
-mtn diff $EXCLUDE -r t:i2p-$REL -r h: > 7$LAST.diff
-$EDITOR 7$LAST.diff
+mtn diff $EXCLUDE -r t:i2p-$REL -r w: > $REL.diff
+$EDITOR $REL.diff
