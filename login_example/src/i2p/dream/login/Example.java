@@ -58,7 +58,7 @@ public class Example extends HttpServlet {
             updateUser(self,request,response);
             return;
         }
-        String who = request.getPathInfo();        
+        String who = request.getPathInfo();
         if(who!=null && (!who.equals("/"))) {
             if(who.equals("/list")) {
                 response.setContentType("text/html");
@@ -82,6 +82,12 @@ public class Example extends HttpServlet {
         if(needsSave)
             db.save(self);
         PrintWriter out = null;
+        String b32 = null;
+        if(self.hash != null) {
+            //b32 = Base32.encode(Base64.decode(self.hash));
+            b32 = request.getHeader("X-I2P-DestB32");
+            b32 = b32.substring(0,b32.length()-8);
+        }
         try {
             out = response.getWriter();
             out.println("<html><head><title>Login Example</title>");
@@ -89,6 +95,8 @@ public class Example extends HttpServlet {
             out.println("<p>Please supply your username, password, birth date, social security number, blood type, address, phone number, John Hancock and registered NWO authorized GenePrint® photo identity card, and we'll log you in.</p>");
             out.println("<p>Just kidding! You're already logged in! No eepsite ever needs to use logins since your client tunnel has its own key pair. Go ahead and update your details below if you like.</p>");
             out.println("<p>You are identified as "+self.hash+"</p><p><small>To stop your ID from changing, go to your <a href=\"http://localhost:7657/i2ptunnel/\">i2ptunnel configuration</a> and select your HTTP proxy, then <code>Use Persistent Tunnels</code> and deselect <code>Shared Client</code>. Save, stop, and start the i2ptunnel.</small>  </p>");
+            if(b32!=null)
+                out.println("<p>If your eepsite is a HTTP Bidir type tunnel and you are using it as an eepproxy, then your eepsite will be <a href=\"http://"+b32+".b32.i2p\">"+b32+"</a></p>");
             out.println("<hr/>");
             out.println("<form method=\"POST\"><dl>");
             out.println("<dt>Name</dt><dd><input name=\"name\" type=\"text\" value=\""+urlencode(self.name)+"\"/></dd>");

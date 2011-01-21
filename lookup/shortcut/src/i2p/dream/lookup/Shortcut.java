@@ -1,7 +1,6 @@
 package i2p.dream.lookup;
 
 import javax.servlet.ServletException;
-import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -16,7 +15,6 @@ import net.i2p.data.DataFormatException;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
-import java.lang.IllegalStateException;
 import java.awt.HeadlessException;
 
 import java.io.PrintWriter;
@@ -24,12 +22,12 @@ import java.io.PrintWriter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import java.lang.InternalError;
-import java.lang.NoClassDefFoundError;
+import net.i2p.data.Hash;
 
 
 public class Shortcut extends HttpServlet {
 
+    @Override
     protected void doGet(HttpServletRequest request, 
                          HttpServletResponse response) 
         throws ServletException, IOException
@@ -45,6 +43,9 @@ public class Shortcut extends HttpServlet {
             } else {
                 Destination address = null;
                 try {
+                    if(name.length()==Hash.HASH_LENGTH*5/4) {
+                        name = i2p.dream.BaseConvert.toBase32(name)+".b32.i2p";
+                    }
                     address = I2PTunnel.destFromName(name);
                 } catch (DataFormatException ex) {
                     Logger.getLogger(Shortcut.class.getName()).log(Level.SEVERE, null, ex);
