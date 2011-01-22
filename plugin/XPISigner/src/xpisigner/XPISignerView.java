@@ -20,6 +20,8 @@ import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.Properties;
@@ -28,8 +30,6 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
 import javax.swing.DefaultListModel;
 import javax.swing.Timer;
 import javax.swing.Icon;
@@ -38,6 +38,7 @@ import javax.swing.JFrame;
 import javax.swing.filechooser.FileFilter;
 import net.i2p.crypto.TrustedUpdate;
 import net.i2p.data.Base64;
+import net.i2p.data.SigningPrivateKey;
 
 /**
  * The application's main frame.
@@ -325,62 +326,62 @@ public class XPISignerView extends FrameView {
     static {
         formatter.setTimeZone(utc);
     }
+    
+    Properties config = new Properties();
+    String pubKey = null;
+
+    private void snarfKey(File src) throws FileNotFoundException, IOException {
+        if(pubKey!=null) return;
+        byte[] buf = new byte[0x1000];
+        FileInputStream in = new FileInputStream(src);
+        try {
+            int amount = in.read(buf);
+            pubKey = Base64.encode(buf,0,amount);
+        } finally {
+           in.close();
+        }
+
+        System.out.println("Signing with key "+pubKey);
+    }
 
     private void signButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_signButtonActionPerformed
         createChooser.showOpenDialog(keyList);
         try {
             File src = createChooser.getSelectedFile();
-            if(src.isFile()) {
-                src = unZipSomewhere(src);
-            }
             File key = new File(keys, (String) model.get(keyList.getSelectedIndex()));
             File pub = new File(key, "public");
             File priv = new File(key, "private");
-            Properties config = new Properties();
-            File configFile = new File(src,"plugin.config");
-            if(configFile.exists()) {
-                FileInputStream in = new FileInputStream(configFile);
-                try {
-                    config.load(in);
-                } finally {
-                    in.close();
+
+            snarfKey(pub);
+
+            File temp = File.createTempFile("xpisigner", ".jar", tempTop);
+            boolean tempsrc = false;
+            try {
+                if(src.isDirectory()) {
+                    File temp2 = File.createTempFile("copy", ".jar", tempTop);
+                    try {
+                        zipUp(src,temp2);
+                    } finally {
+                        src = temp2;
+                        tempsrc = true;
+                    }
                 }
-            }
 
-            if(null==config.getProperty("version")) {
-                config.setProperty("version","0.1");
-            }
+                zipCopy(src,temp);
+                // config should be set now.
 
-            config.remove("date");
-            config.setProperty("date",Long.toString(new Date().getTime()));
+                File xpi = new File(top,config.getProperty("name","unnamed") + "-" +
+                            config.getProperty("version") + ".xpi2p");
 
-            config.remove("key");
-            FileInputStream in = new FileInputStream(pub);
-            try {
-                byte[] buf = new byte[0x400];
-                int amount = in.read(buf);
-                config.setProperty("key",Base64.encode(buf,0,amount));
-            } finally {
-                in.close();
-            }
-
-            FileOutputStream out = new FileOutputStream(configFile);
-            try {
-                config.store(out, "XPISigner has messed with this file");
-            } finally {
-                out.close();
-            }
-
-            File xpi = new File(top,config.getProperty("name","unnamed") + "-" +
-                        config.getProperty("version") + ".xpi2p");
-
-            File temp = File.createTempFile("xpisigner", ".temp.zip", tempTop);
-            try {
-                zipUp(src,temp);
                 TrustedUpdate.main(new String[]{"sign", temp.getPath(), xpi.getPath(),
                             priv.toString(), (String) config.get("version")});
             } finally {
+                /*
                 temp.delete();
+                if(tempsrc)
+                    src.delete();
+                 * 
+                 */
             }
         } catch (ZipException ex) {
             Logger.getLogger(XPISignerView.class.getName()).log(Level.SEVERE, null, ex);
@@ -476,48 +477,63 @@ public class XPISignerView extends FrameView {
 
     }
 
-    private File unZipSomewhere(File src) throws IOException {
-        File temp = File.createTempFile("temp", ".dir", tempTop);
-        temp.delete();
-        temp.mkdir();        
-        FileInputStream thhh = new FileInputStream(src);
-        thhh.skip(56); // ?
-        JarInputStream ji = new JarInputStream(thhh);
-        try {
-            lastManifest = ji.getManifest();
-            for (;;) {
-                JarEntry e = ji.getNextJarEntry();
-                if (e == null) {
-                    break;
-                }
-                System.out.println("Name " + e);
-                File dest = new File(temp, e.getName());
-                if (e.isDirectory()) {
-                    dest.mkdirs();
-                } else {
-                    dest.getParentFile().mkdirs();
-                    FileOutputStream out = new FileOutputStream(dest);
-                    try {
-                        int len;
-                        byte[] buf = new byte[0x400];
-                        for (;;) {
-                            len = ji.read(buf);
-                            if (len < 0) {
-                                break;
-                            }
-                            out.write(buf, 0, len);
-                        }
-                    } finally {
-                        out.close();
-                        ji.closeEntry();
-                    }
-                }
-                dest.setLastModified(e.getTime());
-            }
-        } finally {
-            ji.close();
+    private void handleConfigFile(InputStream in, OutputStream out) throws IOException {
+        config.load(in);
+
+        if(null==config.getProperty("version")) {
+                config.setProperty("version","0.1");
         }
 
-        return temp;
+        config.remove("date");
+        config.setProperty("date",Long.toString(new Date().getTime()));
+
+        config.remove("key");
+        config.setProperty("key",pubKey);
+
+        config.store(out, "XPISigner has messed with this file");
     }
+
+    private void zipCopy(File src, File temp) throws FileNotFoundException, IOException {
+        FileInputStream in = new FileInputStream(src);
+        try {
+            if(src.getName().endsWith(".xpi2p")) {
+                in.skip(56); // how to calculate this...
+            }
+            JarInputStream zi = new JarInputStream(in);
+            Manifest manifest = zi.getManifest();
+            FileOutputStream out = new FileOutputStream(temp);
+            try {
+                JarOutputStream zo;
+                if (manifest == null) {
+                    zo = new JarOutputStream(out);
+                } else {
+                    zo = new JarOutputStream(out, manifest);
+                }
+                for (;;) {
+                    JarEntry entry = zi.getNextJarEntry();
+                    if(entry==null) break;
+                    entry = (JarEntry)entry.clone();
+                    entry.setCompressedSize(-1);                    
+                    zo.putNextEntry(entry);
+
+                    if(entry.getName().equals("plugin.config")) {
+                        handleConfigFile(zi,zo);
+                    } else {
+                        int len;
+                        byte[] buf = new byte[0x400];
+                        while ((len = zi.read(buf)) > 0) {
+                            zo.write(buf, 0, len);
+                        }
+                    }
+                }
+                zo.close();
+            } finally {
+                out.close();
+            }
+        } finally {
+            in.close();
+        }
+
+    }
+
 }
