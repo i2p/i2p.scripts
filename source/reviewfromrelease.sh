@@ -3,10 +3,13 @@
 # this includes local changes not checked in
 # zzz 2008-10
 #
-PREF=0.7
-LAST=7
-REL=$PREF$LAST
+REL=`grep 'public final static String VERSION' core/java/src/net/i2p/CoreVersion.java | cut -d '"' -f2`
+if [ -z "$REL" ]
+then
+	echo "Cannot find current version"
+	exit 1
+fi
 
 echo "Diffing from $REL"
-mtn diff -r t:i2p-$REL > 7$LAST.diff
-$EDITOR 7$LAST.diff
+mtn diff -r t:i2p-$REL > $REL.diff
+$EDITOR $REL.diff

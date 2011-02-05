@@ -1,4 +1,8 @@
 http://echelon.i2p/i2p/i2pupdate.sud
+http://echelon.i2p/i2p/i2pupdate.su2
 http://www.i2p2.i2p/_static/i2pupdate.sud
+http://www.i2p2.i2p/_static/i2pupdate.su2
 http://update.postman.i2p/i2pupdate.sud
+http://update.postman.i2p/i2pupdate.su2
 http://stats.i2p/i2p/i2pupdate.sud
+http://stats.i2p/i2p/i2pupdate.su2
