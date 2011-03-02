@@ -24,4 +24,12 @@ public class Configuration {
     }
 
     static public final Charset charset = Charset.forName("UTF-8");
+
+    static File getTempDir() {
+        File conf = getConfDir();
+        File temp = new File(conf,"temp");
+        if(!temp.isDirectory())
+            temp.mkdir();
+        return temp;
+    }
 }

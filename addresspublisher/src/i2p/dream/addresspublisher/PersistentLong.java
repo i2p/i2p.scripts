@@ -21,9 +21,11 @@ import java.util.logging.Logger;
  */
 class PersistentLong {
     long num;
+    File f;
     PersistentLong(File f, long def) {
+        this.f = f;
         num = def;
-        InputStream in = null;        
+        FileInputStream in = null;
         try {
             try {
                 in = new FileInputStream(f);
@@ -31,6 +33,7 @@ class PersistentLong {
                 num = 0;
                 return;
             }
+            in.getChannel().lock();
             byte[] buf = new byte[8];
             in.read(buf);
             num = buf[7]<<0x38 |
@@ -53,7 +56,7 @@ class PersistentLong {
         }
     }
 
-    public void save(File f) throws IOException {
+    public void save() throws IOException {
         byte[] buf = new byte[8];
         buf[0] = (byte) (num & 0xff);
         buf[1] = (byte) ((num >> 8) & 0xff);
@@ -63,9 +66,10 @@ class PersistentLong {
         buf[5] = (byte) ((num >> 0x28) & 0xff);
         buf[6] = (byte) ((num >> 0x30) & 0xff);
         buf[7] = (byte) ((num >> 0x38) & 0xff);
-        OutputStream out = null;
+        FileOutputStream out = null;
         try {
             out = new FileOutputStream(f);
+            out.getChannel().lock();
             out.write(buf);
         } finally {
             if(out!=null)

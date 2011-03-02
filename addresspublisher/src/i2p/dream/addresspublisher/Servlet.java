@@ -7,7 +7,12 @@ package i2p.dream.addresspublisher;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Date;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletConfig;
@@ -21,50 +26,16 @@ import javax.servlet.http.HttpServletResponse;
  * @author dream
  */
 
-class RepeatedInspect extends Thread {
-    InspectHosts guy = new InspectHosts();
-    private boolean ready = false;
-    @Override
-    @SuppressWarnings("SleepWhileHoldingLock")
-    public void run() {
-        /* we can't wait/notify because java doesn't have inotify support, so
-         * polling is the only option.
-         * jnotify support would be really nice...
-         * at least it seeks to the lowest last position every time!
-         */
-        for(;;) {
-            try {
-                guy.run();
-                synchronized(this) {
-                    ready = true;
-                    this.notifyAll();
-                }
-            } catch(Exception ex) {
-                // we never want this thread to die.
-                Logger.getLogger(RepeatedInspect.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            try {
-                // poll once an hour.
-                Thread.sleep(3600000);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(RepeatedInspect.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-    }
-
-    void waitUntilReady() throws InterruptedException {
-        synchronized(this) {
-            if(ready) return;
-            this.wait(10000);
-        }
-    }
-}
-
 public class Servlet extends HttpServlet {    
     Date myModified;
-    private static RepeatedInspect inspect;
+
+    static final Context context = new Context("Servlet");
+
+    final Map<String,DownloadRecentHosts> subscriptions =
+            new TreeMap<String,DownloadRecentHosts>();
 
     @Override
+    @SuppressWarnings("ResultOfObjectAllocationIgnored")
     public void init(ServletConfig config) throws ServletException {
         try {
             for (Record r : RecordIndex.getInstance()) {
@@ -76,10 +47,20 @@ public class Servlet extends HttpServlet {
         }
         if(myModified==null)
             myModified = new Date(-1);
-          
-        if(inspect==null) {
-            inspect = new RepeatedInspect();
-            inspect.start();
+
+        Timer timer = context.timer;
+
+        //timer.schedule(new InspectHosts(context,"master"),1000,60*60*1000);
+        for (String uri : new String[] {
+                "http://stats.i2p/cgi-bin/newhosts.txt",
+                "http://i2host.i2p/cgi-bin/i2hostetag"}) {
+            try {
+                DownloadRecentHosts task = new DownloadRecentHosts(context, uri, new URL(uri));
+                subscriptions.put(uri,task);
+                timer.schedule(task,10*60*1000,60*60*1000);
+            } catch (MalformedURLException ex) {
+                Logger.getLogger(Servlet.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
     }
     
@@ -137,12 +118,6 @@ public class Servlet extends HttpServlet {
     }
 
     private void recentHosts(Date modified, PrintWriter out) throws IOException {
-        try {
-            inspect.waitUntilReady();
-        } catch (InterruptedException ex) {
-            out.write("# not ready yet, still loading. Try again in a bit.");
-            return;
-        }        
         for(Record r : RecordIndex.getInstance()) {
             Date rmod = r.getModified();
 
@@ -150,6 +125,17 @@ public class Servlet extends HttpServlet {
                 break;
             if(rmod.after(myModified))
                 myModified = rmod;
+
+            if(r.getModified() == null) {
+                throw new RuntimeException("Augh! "+r.id);
+            }
+            if(r.getAddress() == null) {
+                throw new RuntimeException("BORG" + r.id + ": "+r.getName());
+            }
+            if(r.getName() == null) {
+                throw new RuntimeException("GROB");
+            }
+
 
             out.write("# Modified="+Long.toHexString(r.getModified().getTime())+" "+"ID="+r.id
                     +"\n"+r.getName()+"="+r.getAddress().toBase64()

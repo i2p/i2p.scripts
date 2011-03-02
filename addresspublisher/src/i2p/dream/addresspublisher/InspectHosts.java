@@ -10,12 +10,11 @@ import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.i2p.I2PAppContext;
@@ -26,109 +25,19 @@ import net.i2p.data.Destination;
  *
  * @author dream
  */
-public class InspectHosts implements Runnable {
-
-    static final File hosts = new File(I2PAppContext.getGlobalContext().getConfigDir(),"hosts.txt");
-    static File getNames() {
-        return new File(Configuration.getConfDir(),"names.index");
-    }
-    static File getLastPos() {
-        return new File(Configuration.getConfDir(),"last_position");
-    }
+public class InspectHosts extends TimerTask {
+    private final String id;
     
-    Set<Integer> knownHosts = new HashSet<Integer>();
-
-    /* The hosts.txt file doesn't change except the end. Hosts are added at the
-     * end and not reordered or anything. Thus, hax!
-     */
-    PersistentLong lastPos = new PersistentLong(getLastPos(),0);
-
-    /**
-     * @param args the command line arguments
-     */
     public void run() {
         FileInputStream in = null;
         try {
-            in = new FileInputStream(getNames());
-            long lp = lastPos.get();
-            if(lp>0) {
-                in.getChannel().position(lp);
+            in = new FileInputStream(new File(I2PAppContext.getGlobalContext().getConfigDir(),"hosts.txt"));
+            if(lastPos.get()<0) {
+                lastPos.set(0);
+                lastPos.save();
             }
-            BufferedReader r = new BufferedReader(
-                    new InputStreamReader(in,Configuration.charset));
-            for(;;) {
-                String line = r.readLine();
-                if(line==null) break;
-                knownHosts.add(line.hashCode());
-            }
-        } catch(FileNotFoundException e) {
-            // index doesn't exist yet
-        } catch (IOException ex) {
-            Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            if(in!=null) {
-                try {
-                    lastPos.set(in.getChannel().position());
-                    lastPos.save(getLastPos());
-                    in.close();
-                } catch (IOException ex) {
-                    Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-        }
-
-        FileOutputStream out = null;
-        try {
-            in = new FileInputStream(hosts);
-            BufferedReader b = new BufferedReader(
-                    new InputStreamReader(in,Configuration.charset));
-            out = new FileOutputStream(getNames(),true);
-            for(;;) {
-                String line = b.readLine();
-                if(line==null) break;
-                int comment = line.indexOf("#");
-                if(comment>0)
-                    line = line.substring(0,comment)
-                            .replaceAll(" ", "")
-                            .replaceAll("\t", "");
-
-                if(line.length()==0) continue;
-
-                int split = line.indexOf("=");
-                if(split==-1) continue;
-                String name = line.substring(0,split)
-                        .replaceAll(" ", "")
-                        .replaceAll("\t", "");
-
-                if(name.length()==0) continue;
-
-                if(knownHosts.contains(name.hashCode())) continue;
-
-                Record rec = RecordIndex.getInstance().newRecord();
-                rec.setName(name);
-                Destination address = new Destination();
-                try {                    
-                    address.fromBase64(line.substring(split + 1));
-                } catch (DataFormatException ex) {
-                    Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
-                    continue;
-                }
-                rec.setAddress(address);
-                rec.setModified(new Date());
-                try {
-                    rec.maybeSave();
-                } catch (DataFormatException ex) {
-                    Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
-                    continue;
-                }
-                knownHosts.add(name.hashCode());
-                out.write((name+"\n")
-                        .getBytes(Configuration.charset));
-
-                Logger.getLogger(InspectHosts.class.getName()).log(Level.INFO,
-                        "Created new address record for {0}({1})",
-                        new Object[]{name, rec.id});
-            }
+            in.skip(lastPos.get());
+            inspect(in);
         } catch (FileNotFoundException ex) {
             Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
         } catch(EOFException e) {
@@ -140,12 +49,95 @@ public class InspectHosts implements Runnable {
                 if (in != null) {
                     in.close();
                 }
-                if (out != null) {
-                    out.close();
-                }
             } catch (IOException ex) {
                 Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
             }
+        }
+    }
+    
+    static final File positions = new File(Configuration.getConfDir(),"positions");
+    static {
+        if (!positions.isDirectory())
+            positions.mkdir();
+    }
+
+    private final KnownHosts knownHosts;
+    protected final PersistentLong lastPos;
+
+    InspectHosts(Context context, String id) {
+        this.knownHosts = context.knownHosts;        
+        lastPos = new PersistentLong(new File(positions,id),0);
+        this.id = id;
+    }
+
+    /* The hosts.txt file doesn't change except the end. Hosts are added at the
+     * end and not reordered or anything. Thus, hax!
+     */
+    
+    public void inspect(InputStream in) throws IOException {
+        BufferedReader b = new BufferedReader(
+                new InputStreamReader(in, Configuration.charset));
+        for (;;) {
+            String line = b.readLine();
+            if (line == null) {
+                break;
+            }
+            synchronized (lastPos) {
+                lastPos.set(lastPos.get() + line.length());
+                lastPos.save();
+            }
+
+            int comment = line.indexOf("#");
+            if(comment==0)
+                continue;
+            if (comment > 0) {
+                line = line.substring(0, comment).replaceAll(" ", "").replaceAll("\t", "");
+            }
+
+            if (line.length() == 0) {
+                continue;
+            }
+
+            int split = line.indexOf("=");
+            if (split == -1) {
+                continue;
+            }
+            String name = line.substring(0, split).replaceAll(" ", "").replaceAll("\t", "");
+
+            if (name.length() == 0) {
+                continue;
+            }
+
+            if (knownHosts.contains(name)) {
+                continue;
+            }
+
+            if(split == line.length()-1)
+                continue;
+
+            Destination address = new Destination();
+            try {
+                address.fromBase64(line.substring(split + 1));
+            } catch (DataFormatException ex) {
+                Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, name+" had a bad address: "+line.substring(split+1), ex);
+                continue;
+            }
+
+            Record rec = RecordIndex.getInstance().newRecord();
+            rec.setName(name);
+
+            rec.setAddress(address);
+            rec.setModified(new Date());
+            try {
+                rec.maybeSave();
+            } catch (DataFormatException ex) {
+                Logger.getLogger(InspectHosts.class.getName()).log(Level.SEVERE, null, ex);
+                continue;
+            }
+            knownHosts.add(name);
+            Logger.getLogger(InspectHosts.class.getName()).log(Level.INFO,
+                    "Created new address record for {0}({1})",
+                    new Object[]{name, rec.id});
         }
     }
 }

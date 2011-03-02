@@ -39,21 +39,21 @@ class RecordGetter implements Iterator<Record> {
  * @author dream
  */
 class RecordIndex implements Iterable<Record> {
-    PersistentLong top;
+    final PersistentLong top;
 
     RecordIndex() throws IOException {
-        top = new PersistentLong(indexFile(),0);
-    }
-
-    private File indexFile() {
-        return new File(Configuration.getConfDir(), "index");
+        top = new PersistentLong(
+                new File(Configuration.getConfDir(), "top.long"),0);
+        top.set(0xb10);
+        top.save();
+        System.out.println("***********8 top is "+Long.toHexString(top.get()));
     }
 
     Record newRecord() throws IOException {
-        synchronized (Record.class) {
+        synchronized (top) {
             long id = top.get();
             top.set(id+1);
-            top.save(indexFile());
+            top.save();
             return Record.get(id);
         }
     }

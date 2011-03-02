@@ -6,9 +6,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 
 import net.i2p.i2ptunnel.I2PTunnel;
 import net.i2p.data.Base32;
+import net.i2p.data.Base64;
 import net.i2p.data.Destination;
 import net.i2p.data.DataFormatException;
 
@@ -41,17 +43,32 @@ public class Shortcut extends HttpServlet {
             if(name==null) {
                 askForName(out);
             } else {
+                if (name.startsWith("http://")) {
+                    name = name.substring(7);
+                }
+                int i = name.indexOf('/');
+                if(i > 0) {
+                    name = name.substring(0,i);
+                }
+                boolean isb32 = false;
                 Destination address = null;
                 try {
-                    if(name.length()==Hash.HASH_LENGTH*5/4) {
-                        name = i2p.dream.BaseConvert.toBase32(name)+".b32.i2p";
+                    int length = name.length();
+                    if(length==Hash.HASH_LENGTH*5/4) {
+                        name = Base32.encode(Base64.decode(name))+".b32.i2p";
+                        isb32 = true;
+                    } else if(length==Hash.HASH_LENGTH*13/8) {
+                        name = name + ".b32.i2p";
+                        isb32 = true;
+                    } else if(name.endsWith(".b32.i2p")) {
+                        isb32 = true;
                     }
                     address = I2PTunnel.destFromName(name);
                 } catch (DataFormatException ex) {
                     Logger.getLogger(Shortcut.class.getName()).log(Level.SEVERE, null, ex);
                 }
                 
-                showShortcut(name,address,out);
+                showShortcut(name,address,out,isb32);
             }
         } finally {
             if(out!=null) out.close();
@@ -69,21 +86,40 @@ public class Shortcut extends HttpServlet {
 
     void showShortcut(String name,
                       Destination address,
-                      PrintWriter out)
+                      PrintWriter out,
+                      boolean isb32)
         throws IOException
     {   
         if(address==null) {
             out.println("Could not find '"+name+"'");
             return;
         }
-        String b32 = Base32.encode(address.calculateHash().getData());
-        String b64 = address.toBase64();
+        final String b32 = Base32.encode(address.calculateHash().getData());
+        final String b64 = address.toBase64();
 
-        out.println("<html><head><title>"+b32+"</title></head><body>");
-        b32 = "http://" + b32 + ".b32.i2p";
+        boolean showName = true;
+        if(name.equals(b32)) {
+            showName = false;
+        }
+
+        out.println("<html><head><title>");
+        if(showName) {
+            out.print(name+" - ");
+        }
+        out.println(b32);
+        out.println("</title></head><body>");
+        final String b32uri = "http://" + b32 + ".b32.i2p";
+        if(showName) {
+            out.println("<p>Information for: "+name+"</p>");
+        }
         out.println("<p>Base64:<blockquote>"+b64+"</blockquote></p>");
-        out.println("<p>Base32:<blockquote>"+b32+"</blockquote></p>");
-        out.println("<p>Click <a href=\"http://localhost:7657/susidns/addressbook.jsp?book=master&destination="+b64+"\">here</a> and fill in a name at the bottom to add this site to your addressbook!</p>");
+        out.println("<p>Base32:<a href=\""+b32uri+"\"><blockquote>"+b32+"</blockquote></a></p>");
+        out.println("<p>Click <a href=\"http://localhost:7657/susidns/addressbook.jsp?book=master&"+
+                    (isb32 ? "" : ("hostname="+URLEncoder.encode(name)+"&")) +
+                    "destination="+b64+
+                    "\">here</a> and " +
+                    (isb32 ? "fill in a name at" : "page down to") +
+                    " the bottom to add this site to your addressbook!</p>");
         try { 
             Clipboard clip = Toolkit.getDefaultToolkit().getSystemClipboard();
             StringSelection s = new StringSelection(b32);
