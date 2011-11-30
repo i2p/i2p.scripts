@@ -52,7 +52,13 @@ then
 	exit 0
 fi
 #
-PATH_INFO=${PATH_INFO:-/}
+# redirect viewmtn to viewmtn/ or else the links don't work right
+if [ "x$PATH_INFO" = "x" ]
+then
+	echo -e "Status: 301 Moved\r"; echo -e "Location: http://${HTTP_HOST}${SCRIPT_NAME}/\r"; echo -e "\r"
+	exit 0
+fi
+
 REQUEST_METHOD=${REQUEST_METHOD:-HEAD}
 T=${PATH_INFO%/rss}
 if [ "$T" != "$PATH_INFO" ]
