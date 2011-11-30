@@ -1,4 +1,4 @@
-#
+#!/bin/sh
 # mtn sync script
 # zzz Feb 1 2008
 #
@@ -14,13 +14,59 @@
 #
 # Be sure and set up the configuration correctly below.
 #
-#
+##########################################################
+# Stop multiple instances from running simultaneously    #
+# Nothing in this section should require editing         #
+##########################################################
+if [ -w /var/lock ]; then  # the default lock directory in Linux
+        LOCKDIR="/var/lock/mtn-sync.lck"
+else
+        LOCKDIR="/tmp/mtn-sync.lck"   # but maybe not elsewhere...
+fi
+PIDFILE="${LOCKDIR}/PID"
+ENO_SUCCESS=0;
+ENO_GENERAL=1;
+ENO_LOCKFAIL=2;
+ENO_RECVSIG=3;
+
+#trap 'ECODE=$?; echo "[`basename $0`] Exit: ${ECODE}" >&2' 0
+
+if mkdir "${LOCKDIR}"  > /dev/null 2>&1 ; then
+       trap 'ECODE=$?;
+       rm -rf "${LOCKDIR}"' 0
+       touch $PIDFILE
+       echo $$ > "${PIDFILE}"
+       trap 'echo "ERROR: Killed by a signal $ECODE $ENO_RECVSIG" >&2
+            exit ${ENO_RECVSIG}' 1 2 3 15
+else
+       # lock failed, check if it's stale
+       OTHERPID="$(cat "${PIDFILE}")"
+
+       if [ $? != 0 ]; then
+               echo "ERROR: Another instance of `basename $0` is active with PID ${OTHERPID}" >&2
+               exit ${ENO_LOCKFAIL}
+       fi
+
+       if ! kill -0 ${OTHERPID} >/dev/null 2>&1; then
+               #stale lock, removing it and restarting
+               [ $opt_verbose ] && echo "INFO: Removing stale PID ${OTHERPID}" >&2
+               rm -rf ${LOCKDIR}
+               [ $opt_verbose ] && echo "INFO: [`basename $0`] restarting" >&2
+               exec "$0" "$@"
+       else
+               #lock is valid and OTHERPID is active
+               echo "ERROR: Another instance of `basename $0` is active with PID ${OTHERPID}" >&2
+               exit ${ENO_LOCKFAIL}
+       fi
+fi
+##########################################################
+# Configuration may be required in this section          #
 ##########################################################
 #
 # try something a few times
 #
 MAX=5
-function retry
+retry () 
 {
 	if [ $# -eq 0 ]
 	then
@@ -42,9 +88,9 @@ function retry
 }
 
 ##########################################################
-#
-# Configure as necessary
-# Have to be careful to quote the branch $BR correctly
+# Configure as necessary                                 #
+# Have to be careful to quote the branch $BR correctly   #
+##########################################################
 #
 TKEY=my-transport-key@mail.i2p
 BR='i2p.*'
