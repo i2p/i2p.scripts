@@ -50,7 +50,7 @@ else
        if ! kill -0 ${OTHERPID} >/dev/null 2>&1; then
                #stale lock, removing it and restarting
                echo "INFO: Removing stale PID ${OTHERPID}" >&2
-               rm -rf ${LOCKDIR}
+               rm -rf ${LOCKDIR} || echo "Cannot remove ${LOCKDIR}" >&2 ; exit 1
                echo "INFO: [`basename $0`] restarting" >&2
                exec "$0" "$@"
        else
