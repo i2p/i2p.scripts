@@ -8,21 +8,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URL;
-import java.net.URLConnection;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.i2p.I2PException;
 import net.i2p.client.I2PSessionException;
 import net.i2p.data.DataFormatException;
 import net.i2p.data.Destination;
-import net.i2p.data.Hash;
 
 class KeyFinder {
 
-    static final File location = new File(new File(System.getenv("HOME")),".keys");
+    static public final File location = new File(new File(System.getenv("HOME")),".keys");
     static {
+        System.err.println("********************** Location is "+location);
         location.mkdirs();
     }
 
@@ -85,8 +84,8 @@ class KeyFinder {
                 in = new FileInputStream(temp);
                 String name = Tools.keyName(in);
                 System.out.println("New key discovered " + name);
-                temp.renameTo(new File(location, name));
-                final File derp = temp;
+                final File derp = new File(location, name);
+                temp.renameTo(derp);
                 temp = null;
                 return new PublicKey(derp);
             } finally {
@@ -149,11 +148,14 @@ class KeyFinder {
         OutputStream out = null;
         HttpURLConnection httpCon = null;
         try {
-            httpCon = (HttpURLConnection) keyServer.openConnection();
+            httpCon = (HttpURLConnection) keyServer.openConnection(new Proxy(Proxy.Type.HTTP,new InetSocketAddress("127.0.0.1",4444)));
             httpCon.setDoOutput(true);
             httpCon.setRequestMethod("PUT");
+            httpCon.addRequestProperty("Content-length", Integer.toString(key.dest.size()));
             out = httpCon.getOutputStream();
             key.export(out);
+            out.flush();
+            System.err.println("Put response is "+httpCon.getResponseCode());
         } finally {
             if(out !=null) {
                 out.close();

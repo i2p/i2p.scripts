@@ -22,7 +22,6 @@ import net.i2p.data.DataFormatException;
 import net.i2p.data.Destination;
 import net.i2p.data.PrivateKeyFile;
 import net.i2p.data.SessionKey;
-import net.i2p.data.Signature;
 import net.i2p.data.SigningPrivateKey;
 
 import static org.junit.Assert.assertTrue;
@@ -55,7 +54,7 @@ public class PrivateKey extends PrivateKeyFile {
         return dest;
     }    
 
-    public Signature sign(InputStream in) throws IOException {
+    public SignatureHash sign(InputStream in) throws IOException {
         try {
             this.assureDestination();
         } catch (DataFormatException ex) {
@@ -64,29 +63,24 @@ public class PrivateKey extends PrivateKeyFile {
             Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
         }
         SigningPrivateKey skey = this.getSigningPrivKey();
-        assertTrue(skey != null);
-        return DSAEngine.getInstance().sign(Tools.calculateHash(in), skey);
+        assertTrue(skey != null);	
+        return new SignatureHash(Tools.calculateHash(in), skey);
     }
 
     // XXX: call this detachedSign?
     public void sign(InputStream in, OutputStream out) throws IOException, DataFormatException {
-        Signature sig = sign(in);
+        SignatureHash sig = sign(in);
         assertTrue(sig != null);
         sig.writeBytes(out);
     }
 
-    public void blockSign(InputStream in, final JarOutputStream out) throws IOException, DataFormatException {
+    public void blockSign(InputStream in, final JarOutputStream out) throws IOException {
         tempit(in,new InputHandler() {
             public void handle(File temp, FileInputStream in) throws IOException {
-                Signature sig = sign(in);
+                SignatureHash sig = sign(in);
                 JarEntry je = new JarEntry("signature");
                 out.putNextEntry(je);
-                try {
-                    sig.writeBytes(out);
-                } catch (DataFormatException ex) {
-                    Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
-                    return;
-                }
+                sig.writeBytes(out);
                 out.closeEntry();
                 in.close();
                 in = new FileInputStream(temp);

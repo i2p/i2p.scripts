@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletException;
@@ -18,10 +19,18 @@ public class KeyServer extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String path[] = req.getPathTranslated().split("/");
-        if(path.length == 0)
-            resp.sendError(500, "How is this possible? It's a servlet. It always has a path!");
-        String info = path[path.length-1];
+        String derp = req.getRequestURI();
+        final String[] path;
+        if(derp==null)
+            path = null;
+        else
+            path = derp.split("/");
+        if(path==null || path.length <= 2) {
+            showIndex(req,resp);
+            return;
+        }
+            
+        String info = path[2];
         if(info.length()==Tools.NAME_LENGTH) {
             PublicKey key;
             try {
@@ -39,6 +48,7 @@ public class KeyServer extends HttpServlet {
                 resp.sendError(404,"Key not found "+info);
             resp.setContentType("i2p/destination");
             resp.setContentLength(key.dest.size());
+            resp.setStatus(200);
             OutputStream out = null;
             try {
                 out = resp.getOutputStream();
@@ -47,12 +57,14 @@ public class KeyServer extends HttpServlet {
                 } catch (DataFormatException ex) {
                     Logger.getLogger(KeyServer.class.getName()).log(Level.SEVERE, null, ex);
                     out.write("This is an impossible error. It can never happen.".getBytes());
-                }
+                }                
             } finally {
                 if(out != null)
                     out.close();
             }
         }
+
+        resp.sendError(500,"Wrong length! "+info.length()+" != "+Tools.NAME_LENGTH);
     }
 
     @Override
@@ -62,6 +74,7 @@ public class KeyServer extends HttpServlet {
 
     @Override
     protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        System.err.println("YAY GOT PUT");
         InputStream in = null;
         try {
             in = req.getInputStream();
@@ -80,5 +93,34 @@ public class KeyServer extends HttpServlet {
             if(in != null)
                 in.close();
         }
+    }
+
+    private void showIndex(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        PrintWriter out = null;
+        try {
+            out = resp.getWriter();
+            out.println("<html><head><title>Key Server</title></head><body>");
+            out.println("<h1>Welcome to a keyserver!</h1><p>The following keys are known.</p>");
+            String[] names = KeyFinder.location.list(NoDots.instance);
+            if(names == null || names.length==0) {
+                out.println("<p><i>No known keys, sorry.</i></p>");
+            } else {
+                out.println("<ul>");
+                for(String name : KeyFinder.location.list(NoDots.instance)) {
+                    out.print("<li><a href=\"");
+                    out.print(name);
+                    out.print("\">");
+                    out.print(name);
+                    out.println("</a></li>");
+                }
+                out.println("</ul>");
+            }
+            out.println("</body></html>");
+        } finally {
+            if (out != null) {
+                out.close();
+            }
+        }
+
     }
 }

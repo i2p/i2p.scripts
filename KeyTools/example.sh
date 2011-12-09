@@ -1,7 +1,7 @@
 set -e
 
 doit() {
-    java -cp /home/i2p/app/lib/i2p.jar:$PWD/dist/KeyTools.jar i2p.keytools.Main "$@"
+    java -cp /home/i2p/app/lib/i2p.jar:$PWD/lib/junit_4/junit-4.5.jar:$PWD/dist/KeyTools.jar i2p.keytools.Main "$@"
 }
 
 mkdir -p test
@@ -19,12 +19,19 @@ else
 fi
 
 export key
-
+if false; then
 echo Public key $key:
 doit export | base64
-
+echo
+echo -n Signing...
 echo test | doit sign > test/signature
+echo -n Verify the signature...
 echo test | doit verify test/signature
+echo -n BlockSign and BlockVerify...
 echo blockSign makes a jar file | doit blockSign | doit blockVerify
+echo -n Encrypting and decrypting:
 echo this was encrypted | doit encrypt > test/encrypted
 doit decrypt < test/encrypted 
+fi
+echo -n Pushing $key ...
+doit push

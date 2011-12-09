@@ -7,19 +7,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.jar.JarInputStream;
 import net.i2p.I2PAppContext;
 import net.i2p.I2PException;
 import net.i2p.client.I2PSessionException;
 import net.i2p.crypto.AESEngine;
-import net.i2p.crypto.DSAEngine;
 import net.i2p.crypto.ElGamalEngine;
 import net.i2p.data.Certificate;
 import net.i2p.data.DataFormatException;
 import net.i2p.data.Hash;
 import net.i2p.data.SessionKey;
-import net.i2p.data.Signature;
 import net.i2p.data.VerifiedDestination;
 import net.i2p.util.RandomSource;
 import static org.junit.Assert.assertTrue;
@@ -80,17 +77,23 @@ public class PublicKey {
     }
 
     public boolean blockVerify(JarInputStream jar) throws IOException, DataFormatException {
-        Signature signature = new Signature();
         jar.getNextJarEntry();
-        signature.readBytes(jar);
+        SignatureHash signature = new SignatureHash(jar);
+
+        if(false==(signature.verify(dest.getSigningPublicKey())))
+            // Signature was tampered with or isn't right for this key.
+            return false;
 
         jar.getNextJarEntry();
         Hash hash = Tools.calculateHash(jar);
-        return verify(signature,hash);
+        if(false==(signature.equals(hash)))
+            // Body was tampered with, even though signature is right or wrong body
+            return false;
+        return true;
     }
 
-    public boolean verify(Signature signature, Hash hash) {
-        return (DSAEngine.getInstance().verifySignature(signature,hash,dest.getSigningPublicKey()));
+    public boolean verify(SignatureHash signature) {
+        return signature.verify(dest.getSigningPublicKey());
     }
 
     public void encrypt(InputStream in, OutputStream out) throws IOException {

@@ -39,4 +39,16 @@ public class Tools {
     static String keyName(Hash h) throws IOException {
         return h.toBase64().replaceAll("=", "");
     }
+
+    static byte[] readExactly(InputStream in, int length) throws IOException {
+        byte[] buf = new byte[length];
+        int left = buf.length;
+        while(left > 0) {
+            int amount = in.read(buf,buf.length-left,left);
+            if(amount < 0)
+                throw new IOException("Not enough data in inputstream!");
+            left -= amount;
+        }
+        return buf;
+    }
 }

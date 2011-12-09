@@ -57,10 +57,10 @@ public class Main {
         } else {
             InputStream in = null;
             if (operation.equals("verify")) {
-                Signature signature = new Signature();
+                final SignatureHash signature;
                 try {
                     in = new FileInputStream(args[1]);
-                    signature.readBytes(in);
+                    signature = new SignatureHash(in);
                 } finally {
                     if (in != null) {
                         in.close();
@@ -71,7 +71,7 @@ public class Main {
                 // it /is/ a signature of this key without calculating
                 // the hash of the data
 
-                if(key.verify(signature, Tools.calculateHash(System.in))) {
+                if(key.verify(signature) && signature.equals(Tools.calculateHash(System.in))) {
                     System.out.println("Verified yay");
                 } else {
                     System.out.println("Bad input data boo");

@@ -10,6 +10,21 @@
 <project name="KeyTools" default="default" basedir=".">
     <description>Builds, tests, and runs the project KeyTools.</description>
     <import file="nbproject/build-impl.xml"/>
+
+    <target name="war" depends="jar" > 
+        <war destfile="dist/keys.war" webxml="web.xml">
+          <fileset dir="web/"/>
+	  <lib dir="dist/">
+	    <include name="KeyTools.jar"/>
+	  </lib>
+          <manifest>
+            <attribute name="Build-Date" value="${build.timestamp}" />
+          </manifest>
+        </war>
+    </target>
+
+    <target name="default" depends="war"/>
+
     <!--
 
     There exist several targets which are by default empty and which can be 
