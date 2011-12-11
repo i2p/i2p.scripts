@@ -1,15 +1,11 @@
 set -e
 
-doit() {
-    java -cp /home/i2p/app/lib/i2p.jar:$PWD/lib/junit_4/junit-4.5.jar:$PWD/dist/KeyTools.jar i2p.keytools.Main "$@"
-}
-
 mkdir -p test
 
 if [ "$thehardway" ]; then
     echo This takes about 2min each run, so do not bother just for an example.
     exit 3;
-    key=$(doit create | grep '^Created new key ' | sed -e's/^Created new key //')
+    key=$(sh do.sh create | grep '^Created new key ' | sed -e's/^Created new key //')
     # Created new key I6guiNQXM1Rc-KfcCLqJovp-iHusE-MMXIUxnG3jcCE
     # echo key=$key
 else
@@ -19,19 +15,17 @@ else
 fi
 
 export key
-if false; then
 echo Public key $key:
-doit export | base64
+sh do.sh export | base64
 echo
 echo -n Signing...
-echo test | doit sign > test/signature
+echo test | sh do.sh sign > test/signature
 echo -n Verify the signature...
-echo test | doit verify test/signature
+echo test | sh do.sh verify test/signature
 echo -n BlockSign and BlockVerify...
-echo blockSign makes a jar file | doit blockSign | doit blockVerify
+echo blockSign makes a jar file | sh do.sh blockSign | sh do.sh blockVerify
 echo -n Encrypting and decrypting:
-echo this was encrypted | doit encrypt > test/encrypted
-doit decrypt < test/encrypted 
-fi
+echo this was encrypted | sh do.sh encrypt > test/encrypted
+sh do.sh decrypt < test/encrypted 
 echo -n Pushing $key ...
-doit push
+sh do.sh push

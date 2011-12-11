@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-interface InputHandler {
-    public void handle(File javaSucks, FileInputStream in) throws IOException;
+public interface InputHandler {
+    // returns true if not to delete the file (it gets renamed etc)
+    public boolean handle(File javaSucks, FileInputStream in) throws IOException;
 }

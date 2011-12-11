@@ -18,34 +18,48 @@ import net.i2p.data.DataFormatException;
 public class KeyServer extends HttpServlet {
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String derp = req.getRequestURI();
-        final String[] path;
-        if(derp==null)
-            path = null;
-        else
-            path = derp.split("/");
-        if(path==null || path.length <= 2) {
-            showIndex(req,resp);
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {        
+        final String[] path = req.getRequestURI().split("/");
+        // but you can't tell if it ends in a / ?
+        //System.err.println("Path: "+Tools.join(" / ",path));
+        if(path.length < 2) {
+            resp.sendRedirect("/keys/");
             return;
         }
+
+        final String info;
+        if(path.length==2)
+            info = null;
+        else
+            info = path[2];
+
+        if(info==null) {
+            showIndex(req,resp);
+            return;
+        } 
             
-        String info = path[2];
-        if(info.length()==Tools.NAME_LENGTH) {
+        System.err.println("Looking for "+info);
+        if(info.length()<=Tools.NAME_LENGTH) {
             PublicKey key;
             try {
-                key = KeyFinder.find(info, false);
+                key = KeyFinder.find(info);
             } catch (DataFormatException ex) {
                 Logger.getLogger(KeyServer.class.getName()).log(Level.SEVERE, null, ex);
                 resp.sendError(500,"Impossible error "+info);
+                throw new RuntimeException(ex);
+            } catch (IOException ex) {
+                resp.sendError(404,"Key not found");
                 return;
             } catch (I2PException ex) {
                 Logger.getLogger(KeyServer.class.getName()).log(Level.SEVERE, null, ex);
                 resp.sendError(500,"I2P is fucking with me");
+                throw new RuntimeException(ex);
+            }
+            // XXX: this never really happens...
+            if(key==null) {
+                resp.sendError(404,"Key not found "+info);
                 return;
             }
-            if(key==null)
-                resp.sendError(404,"Key not found "+info);
             resp.setContentType("i2p/destination");
             resp.setContentLength(key.dest.size());
             resp.setStatus(200);
@@ -62,9 +76,10 @@ public class KeyServer extends HttpServlet {
                 if(out != null)
                     out.close();
             }
+            return;
         }
 
-        resp.sendError(500,"Wrong length! "+info.length()+" != "+Tools.NAME_LENGTH);
+        resp.sendError(500,"Wrong length! "+info.length()+" > "+Tools.NAME_LENGTH);
     }
 
     @Override

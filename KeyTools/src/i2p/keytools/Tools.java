@@ -1,8 +1,15 @@
 package i2p.keytools;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.security.MessageDigest;
+import java.util.jar.JarInputStream;
 import net.i2p.crypto.SHA256Generator;
 import net.i2p.data.Hash;
 
@@ -30,6 +37,49 @@ public class Tools {
         }
 
         return new Hash(digest.digest());
+    }
+
+    static void copy(File source, File temp) throws FileNotFoundException, IOException {
+        InputStream in = null;
+        try {
+            in = new FileInputStream(source);
+            OutputStream out = null;
+            try {
+                out = new FileOutputStream(temp,true);
+                copy(in,out);
+            } finally {
+                if(out != null)
+                    out.close();
+            }
+        } finally {
+            if(in != null)
+                in.close();
+        }
+    }
+
+    static void copy(InputStream in, OutputStream out) throws IOException {
+        byte[] buf = new byte[0x1000];
+        for (;;) {
+            int amount = in.read(buf);
+            if (amount <= 0) {
+                break;
+            }
+            out.write(buf, 0, amount);
+        }
+    }
+
+    static String join(String delimiter, String[] path) {
+        StringBuilder out = new StringBuilder();
+        boolean first = true;
+        for(String component : path) {
+            if(first)
+                first = false;
+            else
+                out.append(delimiter);
+
+            out.append('('+component+')');
+        }
+        return out.toString();
     }
 
     static String keyName(InputStream in) throws IOException {

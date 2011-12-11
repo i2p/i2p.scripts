@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.jar.JarInputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.i2p.I2PAppContext;
 import net.i2p.I2PException;
 import net.i2p.client.I2PSessionException;
@@ -28,6 +30,7 @@ public class PublicKey {
     final public PrivateKey privateKey;
 
     final public VerifiedDestination dest;
+    private static final boolean FUUU_CANNOT_IMPORT_THIS_WAY = true;
     
     public PublicKey(File location, boolean createPrivate) throws FileNotFoundException, DataFormatException, I2PSessionException, I2PException, IOException {
         this.location = location;
@@ -66,6 +69,8 @@ public class PublicKey {
     }
 
     void checkEffort() {
+        if(FUUU_CANNOT_IMPORT_THIS_WAY)
+            return;
         Certificate cert = dest.getCertificate();
 
         if (cert.getCertificateType() != Certificate.CERTIFICATE_TYPE_HASHCASH) {
@@ -76,11 +81,26 @@ public class PublicKey {
         assertTrue(dest.verifyCert(false));
     }
 
-    public boolean blockVerify(JarInputStream jar) throws IOException, DataFormatException {
+    public static boolean blockVerify(JarInputStream jar) throws IOException, DataFormatException {
         jar.getNextJarEntry();
+        Hash id = new Hash();
+        id.readBytes(jar);
+        final PublicKey self;
+        try {
+            self = KeyFinder.find(id);
+        } catch (I2PSessionException ex) {
+            Logger.getLogger(PublicKey.class.getName()).log(Level.SEVERE, null, ex);
+            return false;
+        } catch (I2PException ex) {
+            Logger.getLogger(PublicKey.class.getName()).log(Level.SEVERE, null, ex);
+            return false;
+        }
+
+        jar.getNextJarEntry();
+
         SignatureHash signature = new SignatureHash(jar);
 
-        if(false==(signature.verify(dest.getSigningPublicKey())))
+        if(false==(signature.verify(self.dest.getSigningPublicKey())))
             // Signature was tampered with or isn't right for this key.
             return false;
 
@@ -97,6 +117,9 @@ public class PublicKey {
     }
 
     public void encrypt(InputStream in, OutputStream out) throws IOException {
+
+        out.write(dest.calculateHash().getData());
+
         SessionKey sess = ctx.sessionKeyManager().createSession(dest.getPublicKey());
         byte[] data = new byte[SessionKey.KEYSIZE_BYTES + 0x10];
         System.arraycopy(data, 0, sess.getData(), 0, SessionKey.KEYSIZE_BYTES);

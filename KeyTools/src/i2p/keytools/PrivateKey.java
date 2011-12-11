@@ -20,6 +20,7 @@ import net.i2p.crypto.AESEngine;
 import net.i2p.crypto.DSAEngine;
 import net.i2p.data.DataFormatException;
 import net.i2p.data.Destination;
+import net.i2p.data.Hash;
 import net.i2p.data.PrivateKeyFile;
 import net.i2p.data.SessionKey;
 import net.i2p.data.SigningPrivateKey;
@@ -75,8 +76,21 @@ public class PrivateKey extends PrivateKeyFile {
     }
 
     public void blockSign(InputStream in, final JarOutputStream out) throws IOException {
-        tempit(in,new InputHandler() {
-            public void handle(File temp, FileInputStream in) throws IOException {
+        JarEntry je = new JarEntry("id");
+        out.putNextEntry(je);
+        try {
+            assureDestination().calculateHash().writeBytes(out);
+        } catch (DataFormatException ex) {
+            Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
+        } catch (I2PException ex) {
+            Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
+        }
+        out.closeEntry();
+
+        KeyFinder.tempit(in,false,new InputHandler() {
+            public boolean handle(File temp, FileInputStream in) throws IOException {
                 SignatureHash sig = sign(in);
                 JarEntry je = new JarEntry("signature");
                 out.putNextEntry(je);
@@ -94,57 +108,54 @@ public class PrivateKey extends PrivateKeyFile {
                 }
                 out.closeEntry();
                 out.close();
+                return true;
             }
         });
     }
-
-    private static void tempit(InputStream in, InputHandler handler) throws IOException {
-        File temp = null;
+   
+    static void decrypt(InputStream in, OutputStream out) throws IOException {
+        Hash id = new Hash();
         try {
-            temp = File.createTempFile("junk", "temp",KeyFinder.location);
-            temp.setReadable(true, true);
-            temp.setWritable(true, true);
-            OutputStream out = null;
-            try {
-                out = new FileOutputStream(temp);
-                byte[] buf = new byte[0x1000];
-                for(;;) {
-                    int amount = in.read(buf);
-                    if(amount <= 0) break;
-                    out.write(buf,0,amount);
-                }
-            } finally {
-                if(out!=null)
-                    out.close();
-            }
-            in.close();
-            FileInputStream derp = new FileInputStream(temp);
-            in = derp;
-            handler.handle(temp,derp);
-            temp = null;
-        } finally {
-            if(in!=null)
-                in.close();
-            if(temp!=null)
-                temp.delete();
-        }
-    }
-    
-    void decrypt(InputStream in, OutputStream out) throws IOException {
-        try {
-            this.assureDestination();
+            id.readBytes(in);
         } catch (DataFormatException ex) {
             Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
+            return;
+        }
+        final PrivateKey self;
+
+        try {
+            self = KeyFinder.find(id).privateKey;
+        } catch (DataFormatException ex) {
+            Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
+            return;
+        } catch (I2PSessionException ex) {
+            Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
+            return;
         } catch (I2PException ex) {
             Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
+            return;
         }
-        net.i2p.data.PrivateKey pkey = this.getPrivKey();
+
+        if(self==null)
+            throw new RuntimeException("No private key for id "+id);
+
+        try {
+            self.assureDestination();
+        } catch (DataFormatException ex) {
+            Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
+            return;
+        } catch (I2PException ex) {
+            Logger.getLogger(PrivateKey.class.getName()).log(Level.SEVERE, null, ex);
+            return;
+        }
+
+        net.i2p.data.PrivateKey pkey = self.getPrivKey();
         SessionKey sess = new SessionKey();
         byte[] edata = new byte[514];
         if (514 != in.read(edata)) {
             throw new RuntimeException("Huh?");
         }
-        byte[] data = ctx.elGamalEngine().decrypt(edata, pkey);
+        byte[] data = self.ctx.elGamalEngine().decrypt(edata, pkey);
         if (data == null) {
             throw new RuntimeException("You suck bobba!");
         }
@@ -153,7 +164,7 @@ public class PrivateKey extends PrivateKeyFile {
         byte[] iv = new byte[0x10];
         System.arraycopy(iv, 0, data, SessionKey.KEYSIZE_BYTES, 0x10);
         data = new byte[0x1000];
-        AESEngine aes = ctx.aes();
+        AESEngine aes = self.ctx.aes();
         byte[] buf = new byte[0x1000];
 
         for (;;) {
