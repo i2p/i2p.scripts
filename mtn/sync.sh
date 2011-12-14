@@ -82,7 +82,7 @@ retry ()
 		then
 			break
 		fi
-		let i=$i+1
+		i=$(expr $i + 1)
 		sleep 15
 	done
 }
