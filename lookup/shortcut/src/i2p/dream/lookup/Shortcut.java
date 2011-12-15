@@ -39,8 +39,19 @@ public class Shortcut extends HttpServlet {
         URL url = null;
         String name = null;
         if(bleh!=null) {
-            url = new URL(URLDecoder.decode(bleh,"utf-8"));
-            name = url.getHost();
+            bleh = URLDecoder.decode(bleh,"utf-8");
+            try { 
+                url = new URL(bleh);
+                name = url.getHost();
+            } catch(MalformedURLException ex) {
+                try {
+                    url = new URL("http://"+bleh);
+                    name = url.getHost();
+                } catch(MalformedURLException ex2) {
+                    url = new URL("http://unknown.i2p/");
+                    name = bleh;
+                }
+            }
         }
 
         final boolean quick = request.getParameter("q") != null;
