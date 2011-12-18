@@ -32,5 +32,5 @@ sed -e '/@/d' -e 's/$/@mail.i2p/' $FULL > $LIST
 sed '/@/!d' $FULL >> $LIST
 
 for each in $(cat $LIST|sort -u); do
-    /bin/echo -e "$each => " $(grep -c $each $LIST)
+    echo "$each => " $(grep -c $each $LIST)
 done |sort -n -k3,3
