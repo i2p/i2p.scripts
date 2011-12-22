@@ -54,9 +54,9 @@ elif [ ! -e "$I2P/lib/i2p.jar" ]; then
         exit 1
 fi
 
-TMPDIR=/tmp/updatecheck$$
-mkdir $TMPDIR || exit 1
-cd $TMPDIR
+trap 'rm -rf $OURTMPDIR ;exit' 0 1 2 15
+OURTMPDIR=$(mktemp -d)
+cd $OURTMPDIR
 
 for i in $SOURCES
 do
@@ -86,12 +86,13 @@ do
 	rm -f $F
 done
 
-cd /tmp
-rm -rf $TMPDIR
+#rm -rf $OURTMPDIR
 if [ "$FAIL" != "" ]
 then
 	echo '******** At least one source failed check *********'
+	exit $FAIL
 else
 	echo '*** All sources passed'
+	exit 0
 fi
-exit $FAIL
+
