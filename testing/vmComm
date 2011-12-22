@@ -1,0 +1,40 @@
+#!/bin/sh -e
+
+# vmCommSystem switcher
+# KillYourTV, 2011/11
+
+: ${PROFILEHOME:="$HOME/.i2p"}
+ROUTERCONFIG="$PROFILEHOME/router.config"
+
+if [ ! -e "$ROUTERCONFIG" ]; then
+    echo "ERROR: $ROUTERCONFIG not found." >&2
+    exit 1
+fi
+
+switch_vmcomm () {
+    cp -a -f "$ROUTERCONFIG" "$ROUTERCONFIG.tmp"
+    grep -Eq '^ *i2p\.vmCommSystem' "$ROUTERCONFIG" || echo 'i2p.vmCommSystem=' >> "$ROUTERCONFIG"
+    # I'd just use "sed -i" if working on all platforms didn't matter
+    sed -e "s/^ *i2p\.vmCommSystem=.*/i2p\.vmCommSystem=$1/" < "$ROUTERCONFIG" > "$ROUTERCONFIG.tmp"
+    mv -f "$ROUTERCONFIG.tmp" "$ROUTERCONFIG"
+    echo "i2p.vmCommSystem successfully set to $1"
+    exit 0
+}
+
+
+while  true ; do
+    case "$1" in
+        on|true)
+            switch_vmcomm true
+            ;;
+        off|false)
+            switch_vmcomm false
+            ;;
+        *)
+            echo "`basename $0` - vmCommSystem switcher"
+            echo
+            echo "Usage: $0 (on|off)"
+            exit 1
+            ;;
+    esac
+done
