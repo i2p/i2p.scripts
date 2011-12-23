@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# sud2zip
+# simple wrapper to convert .sud, .su2, and xpi2p files
+# to their original .zip source
+
+# KillYourTV Dec 2011
+
+
+BASENAME=$(basename ${1%\.*})
+
+tail -c +57 $1 > ${BASENAME}.zip
