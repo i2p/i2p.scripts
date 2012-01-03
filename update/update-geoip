@@ -1,0 +1,153 @@
+#!/bin/sh -e
+# update-geoip
+#
+# If this script is called without any parameters it will check the remote
+# version and ask if a new geoip.txt (and countries.txt, if configured) should be
+# generated.
+#
+# If called with --cron as the parameter it'll go ahead and unconditionally
+# create the files.  Since the database is updated monthly (usually no later
+# than the eighth of the month), scheduling a cronjob like the following would
+# suffice:
+#
+#     30 5 10 * * /path/to/update-geoip --cron
+#
+# This would update the geoip files on the 10th day of each month at 5:30am.
+# Change the value of "VERBOSE" to make the script quieter (only applicable
+# with the --cron parameter)
+#
+# Kill Your TV, January 2012
+################################################################################
+# By default the geoip file(s) will be written to $HOME/i2p/geoip. This can be
+# overridden at run-time by setting the SAVEPATH environment variable.
+: ${SAVEPATH:="$HOME/i2p/geoip"}
+
+# The I2P proxy will be used to download and check the version of the geoipdb
+# files. The http_proxy environment variable will be respected if
+# it is set. Of course you can override or disable the proxy here.
+
+: ${http_proxy:="127.0.0.1:4444"}
+export http_proxy
+
+VERBOSE="yes"
+
+# Even though Maxmind does not capitalize the country names like our old geoip
+# provider did, it is not recommended to set this to yes because translations
+# could be broken. For example, I2P has "The Former Yugoslav Republic of
+# Macedonia" as a country. Maxmind calls it simply "Macedonia".  The I2P
+# country list is almost always current. Perhaps the I2P list should be changed
+# (and the po files updated) so they match Maxmind's listings?
+UPDATECOUNTRIES="no"
+
+
+#############################################################################
+#   FIXME                                                                   #
+#   EepHead and EepGet should be used instead of relying on external tools  #
+#############################################################################
+
+if [ ! $(which wget) ]; then
+    echo "ERROR: Cannot find wget." >&2
+    exit 1
+fi
+
+if [ ! $(which curl) ]; then
+    echo "ERROR: Cannot find curl." >&2
+    exit 1
+fi
+
+if [ ! -w "$SAVEPATH" ]; then
+    echo "ERROR: $SAVEPATH is not a writable location." >&2
+    exit 1
+fi
+
+verbose()
+{
+    case $VERBOSE in
+        Y*|y*|T*|t*)
+            $@
+            ;;
+    esac
+}
+
+do_countries()
+{
+    case $UPDATECOUNTRIES in
+        Y*|y*|T*|t*)
+            $@
+            ;;
+    esac
+}
+
+BOILERPLATE=$(mktemp)
+GEOIP="http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip"
+
+trap 'rm $BOILERPLATE' 0 1 2 15
+
+remove_old_geoip_downloads ()
+{
+    rm -f GeoIPCountryCSV.zip
+    rm -f GeoIPCountryWhois.csv*
+}
+
+error () {
+    echo "ERROR: $1 failed." >&2
+    exit 1
+}
+
+download_update () {
+    verbose echo
+    remove_old_geoip_downloads
+    case "$VERBOSE" in
+        Y*|y*|T*|t*)
+            wget -N --progress=dot "$GEOIP" || error "Downloading geoip file"
+            ;;
+        *)
+            wget -nv "$GEOIP" || error "Downloading geoip file failed"
+            ;;
+    esac
+
+    unzip -q GeoIPCountryCSV.zip || error "Unzipping geoip file failed"
+cat << EOF >> $BOILERPLATE
+# Last updated based on Maxmind GeoLite Country
+# dated `TZ=UTC stat -c %y GeoIPCountryWhois.csv|cut -d' ' -f1`
+# Script borrowed from Tor
+#
+# wget http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip
+# cut -d, -f3-5 < GeoIPCountryWhois.csv|sed 's/"//g' > geoip.txt
+# cut -d, -f5,6 < GeoIPCountryWhois.csv |sed 's/"//g' | sort | uniq > countries.txt
+EOF
+
+    cp $BOILERPLATE ${SAVEPATH}/geoip.txt
+    do_countries cp $BOILERPLATE ${SAVEPATH}/countries.txt
+
+    cut -d, -f3-5 < GeoIPCountryWhois.csv|sed 's/"//g' >> ${SAVEPATH}/geoip.txt || exit 1
+    do_countries cut -d, -f5,6 < GeoIPCountryWhois.csv |sed 's/"//g' | sort -u >> ${SAVEPATH}/countries.txt || exit 1
+
+    remove_old_geoip_downloads
+    verbose echo
+    verbose echo "Geoip updates saved to $SAVEPATH."
+}
+
+if [ "$1" = "--cron" ]; then
+    download_update
+else
+    # Interactive (without --cron) displays more output
+    VERBOSE="true"
+    echo "Attempting to check version..."
+    echo
+    MODIFIED=$(curl -I --silent $GEOIP | sed -e '/^ *Last-Modified:\s/!d' -e 's/^ *Last-Modified:\s//')
+    echo
+    echo
+    echo "The most recent Maxmind database is from $MODIFIED"
+    echo
+    echo -n "Do you want to generate geoip.txt "
+    do_countries echo -n "and countries.txt "
+    echo -n " from this database? (y/n) "
+    read answer
+    case $answer in
+        Y*|y*|T*|t*)
+            download_update ;;
+        *)
+            exit 0 ;;
+    esac
+fi
