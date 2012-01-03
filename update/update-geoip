@@ -102,11 +102,11 @@ download_update () {
             wget -N --progress=dot "$GEOIP" || error "Downloading geoip file"
             ;;
         *)
-            wget -nv "$GEOIP" || error "Downloading geoip file failed"
+            wget -nv "$GEOIP" || error "Downloading geoip file"
             ;;
     esac
 
-    unzip -q GeoIPCountryCSV.zip || error "Unzipping geoip file failed"
+    unzip -q GeoIPCountryCSV.zip || error "Unzipping geoip file"
 cat << EOF >> $BOILERPLATE
 # Last updated based on Maxmind GeoLite Country
 # dated `TZ=UTC stat -c %y GeoIPCountryWhois.csv|cut -d' ' -f1`
