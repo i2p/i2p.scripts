@@ -25,7 +25,7 @@ fi
 CHARCOUNT=`echo -n $REL | wc -c`
 
 # Let's try to acquire the URLS from the source.
-SOURCES=$(sed -e '/http:\/\/\(.*\)i2pupdate\.su./!d'  -e 's|\\r\\n\"\s+||g' -e 's/"//g' -e 's/;//g' -e 's/\s//g' apps/routerconsole/java/src/net/i2p/router/web/ConfigUpdateHandler.java | sort)
+SOURCES=$(sed -e '/http:\/\/[_a-zA-Z.0-9\/]\+\.su[2d]/!d' -e 's/\s\+\"\(http.*i2pupdate\.su[d2]\)\(.*\)/\1/' apps/routerconsole/java/src/net/i2p/router/web/ConfigUpdateHandler.java | sort)
 
 #SOURCES=`cat updatesources.txt`
 #if [ -z "$SOURCES" ]
