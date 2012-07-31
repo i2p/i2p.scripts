@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# sud2zip
+# simple wrapper to convert .sud, .su2, and xpi2p files
+# to their original .zip source
+
+# KillYourTV Dec 2011, updated Jul 2012
+
+if [ x"$1" = "x" ]; then
+    echo "Usage: `basename $0` [signed-file]"
+    exit
+fi
+
+if [ ! -e $1 ]; then
+    echo "ERROR: $1 not found." >&2
+    exit 1
+fi
+
+BASENAME=$(basename ${1%\.*})
+VERSION=$(dd status=noxfer bs=1 skip=40 count=16 if=$1 2> /dev/null | strings)
+
+if [ $(echo $1 |grep 'su2') ]; then
+    TYPE="200"
+elif [ $(echo $1 |grep 'sud') ]; then
+    TYPE=""
+elif [ $(echo $1 |grep 'xpi2p') ]; then
+    TYPE=""
+else
+    echo "ERROR: Is this a signed update file?" >&2
+    exit 1
+fi
+
+if [ x$VERSION = "x" ]; then
+    OUTPUT=${BASENAME}${TYPE}.zip
+else
+    OUTPUT=${BASENAME}${TYPE}_${VERSION}.zip
+fi
+
+
+tail -c +57 $1 > `pwd`/$OUTPUT
+echo "$1 written to `pwd`/$OUTPUT"
