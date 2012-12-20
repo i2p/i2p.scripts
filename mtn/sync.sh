@@ -87,6 +87,18 @@ retry ()
 	done
 }
 
+# How long to wait for syncs to complete?
+# TIMEOUT is a floating point number with an optional suffix:
+# `s' for seconds (the default), `m' for minutes, `h' for hours or `d' for days.
+# See man timeout(1) for more info.
+
+TIMEOUT="20m"
+if [ $(which timeout) ]; then
+    MTN="timeout $TIMEOUT mtn"
+else
+    MTN="mtn"
+fi
+
 ##########################################################
 # Configure as necessary                                 #
 # Have to be careful to quote the branch $BR correctly   #
