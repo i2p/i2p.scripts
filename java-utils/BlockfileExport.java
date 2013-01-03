@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -60,6 +61,7 @@ public class BlockfileExport {
         I2PAppContext ctx = new I2PAppContext(ctxProps);
         BlockfileNamingService bns = new BlockfileNamingService(ctx);
         List<String> files = getFilenames(HostsTxtNamingService.DEFAULT_HOSTS_FILE);
+        Collections.sort(files);
         Properties getProps = new Properties();
         for (String f : files) {
             getProps.setProperty("list", f);
