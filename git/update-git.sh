@@ -52,6 +52,17 @@ if [ $BRANCH = "i2p.i2p" ]; then
   fi
   echo
 fi
+if [ $BRANCH = "i2p.syndie" ]; then
+  # echo "Killing bad revs"
+  if [[ $MTN_VERSION == 1* ]]; then
+    # mtn 1.0 syntax
+    $MTN --db i2p.mtn local kill_rev d7cd3cc1b9d676c250918b583c4da41d48ea70bc
+  else
+    # mtn 0.48 syntax
+    $MTN --db i2p.mtn db kill_rev_locally d7cd3cc1b9d676c250918b583c4da41d48ea70bc
+  fi
+  echo
+fi
 
 if [[ $MTN_VERSION == 1* ]]; then
   # mtn 1.0 syntax
