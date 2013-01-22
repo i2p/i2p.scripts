@@ -23,11 +23,17 @@ else
   BRANCH=$1
 fi
 
+DB=${BRANCH}.mtn
+
+if [ ! -f $DB ]; then
+  $MTN --db ${DB} db init
+fi
+
 echo "Pulling branch $BRANCH from mtn"
 # Try up to 10 times
 COUNT=0
 while [ $COUNT -lt 10 ]; do
-  $MTN --db i2p.mtn pull 127.0.0.1:8998 $BRANCH --key=
+  $MTN --db ${DB} pull 127.0.0.1:8998 $BRANCH --key=
   if [ $? -eq 0 ]; then
     break
   fi
@@ -43,12 +49,12 @@ if [ $BRANCH = "i2p.i2p" ]; then
   # echo "Killing bad revs"
   if [[ $MTN_VERSION == 1* ]]; then
     # mtn 1.0 syntax
-    $MTN --db i2p.mtn local kill_rev 18c652e0722c4e4408b28036306e5fb600f63472
-    $MTN --db i2p.mtn local kill_rev 7d2f18d277a34eb2772fa9380449c7fdb4dcafcf
+    $MTN --db ${DB} local kill_rev 18c652e0722c4e4408b28036306e5fb600f63472
+    $MTN --db ${DB} local kill_rev 7d2f18d277a34eb2772fa9380449c7fdb4dcafcf
   else
     # mtn 0.48 syntax
-    $MTN --db i2p.mtn db kill_rev_locally 18c652e0722c4e4408b28036306e5fb600f63472
-    $MTN --db i2p.mtn db kill_rev_locally 7d2f18d277a34eb2772fa9380449c7fdb4dcafcf
+    $MTN --db ${DB} db kill_rev_locally 18c652e0722c4e4408b28036306e5fb600f63472
+    $MTN --db ${DB} db kill_rev_locally 7d2f18d277a34eb2772fa9380449c7fdb4dcafcf
   fi
   echo
 fi
@@ -56,30 +62,30 @@ if [ $BRANCH = "i2p.syndie" ]; then
   # echo "Killing bad revs"
   if [[ $MTN_VERSION == 1* ]]; then
     # mtn 1.0 syntax
-    $MTN --db i2p.mtn local kill_rev d7cd3cc1b9d676c250918b583c4da41d48ea70bc
+    $MTN --db ${DB} local kill_rev d7cd3cc1b9d676c250918b583c4da41d48ea70bc
   else
     # mtn 0.48 syntax
-    $MTN --db i2p.mtn db kill_rev_locally d7cd3cc1b9d676c250918b583c4da41d48ea70bc
+    $MTN --db ${DB} db kill_rev_locally d7cd3cc1b9d676c250918b583c4da41d48ea70bc
   fi
   echo
 fi
 
 if [[ $MTN_VERSION == 1* ]]; then
   # mtn 1.0 syntax
-  HEADS=`$MTN --db i2p.mtn head --no-standard-rcfiles --ignore-suspend-certs -b $BRANCH 2> /dev/null | wc -l`
+  HEADS=`$MTN --db ${DB} head --no-standard-rcfiles --ignore-suspend-certs -b $BRANCH 2> /dev/null | wc -l`
 else
   # mtn 0.48 syntax
-  HEADS=`$MTN --db i2p.mtn head --ignore-suspend-certs -b $BRANCH 2> /dev/null | wc -l`
+  HEADS=`$MTN --db ${DB} head --ignore-suspend-certs -b $BRANCH 2> /dev/null | wc -l`
 fi
 if [ $HEADS -gt 1 ]; then
   echo "Heads:"
-  $MTN --db i2p.mtn head --ignore-suspend-certs -b $BRANCH
+  $MTN --db ${DB} head --ignore-suspend-certs -b $BRANCH
   echo Multiple heads, aborting!
   exit
 fi
 
 echo "Exporting to git format"
-$MTN --db i2p.mtn git_export > i2p.git_export
+$MTN --db ${DB} git_export > i2p.git_export
 echo
 
 rm -rf i2p.git
