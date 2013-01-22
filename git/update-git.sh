@@ -69,6 +69,25 @@ if [ $BRANCH = "i2p.syndie" ]; then
   fi
   echo
 fi
+if [ $BRANCH = "i2p.i2p-bote" ]; then
+  # echo "Killing bad revs"
+  if [[ $MTN_VERSION == 1* ]]; then
+    # mtn 1.0 syntax
+    $MTN --db ${DB} local kill_rev 07103f5f968363c284ce3ebe58863861dc10a07a
+    $MTN --db ${DB} local kill_rev 245793c1e59b5ab5dc088ec5cc89f61c3068a729
+    $MTN --db ${DB} local kill_rev 84140d0de55bae627fc0aed7feb55d72b929a43c
+    $MTN --db ${DB} local kill_rev c20050d9e5180c5a568c3f5ab12a356e253d1ed0
+    $MTN --db ${DB} local kill_certs ec0ec8bca6aa7c8d6b314688662891ed0c80aa34 date
+    $MTN --db ${DB} cert ec0ec8bca6aa7c8d6b314688662891ed0c80aa34 date 2012-01-01T00:00:00
+  else
+    # mtn 0.48 syntax
+    $MTN --db ${DB} db kill_rev_locally 07103f5f968363c284ce3ebe58863861dc10a07a
+    $MTN --db ${DB} db kill_rev_locally 245793c1e59b5ab5dc088ec5cc89f61c3068a729
+    $MTN --db ${DB} db kill_rev_locally 84140d0de55bae627fc0aed7feb55d72b929a43c
+    $MTN --db ${DB} db kill_rev_locally c20050d9e5180c5a568c3f5ab12a356e253d1ed0
+  fi
+  echo
+fi
 
 if [[ $MTN_VERSION == 1* ]]; then
   # mtn 1.0 syntax
