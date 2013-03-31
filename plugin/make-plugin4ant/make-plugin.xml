@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- make-plugin.xml -->
+<!-- public domain (natch) -->
+<!-- kytv, Jan 2013 -->
+
+<project name="make-plugin" default="make-plugin" basedir=".">
+    <description>Plugin building Ant script</description>
+    <!-- default global properties -->
+    <property name="i2p.jar" value="${user.home}/i2p/lib/i2p.jar" />
+    <property name="pubkey.dir" value="${user.home}/.i2p-plugin-keys" />
+    <property name="pubkey.file" value="${pubkey.dir}/plugin-public-signing.key" />
+    <property name="privkey.file" value="${pubkey.dir}/plugin-private-signing.key" />
+    <property name="b64key.file" value="${pubkey.dir}/plugin-public-signing.txt" />
+    <property name="plugin.dir" value="plugin" />
+    <property name="plugin.config" value="${plugin.dir}/plugin.config" />
+
+    <target name="checkKeys">
+        <available property="priv.key.available" file="${privkey.file}" type="file" />
+    </target>
+
+    <target name="checkForI2P">
+        <available property="I2P.available" file="${i2p.jar}" type="file" />
+    </target>
+
+    <target name="I2P" depends="checkForI2P" unless="I2P.available">
+        <fail message="Cannot find ${i2p.jar}. Please set the property i2p.jar and try again!" />
+    </target>
+
+    <target name="getPluginInfo">
+        <loadfile srcfile="${plugin.config}" property="plugin.version">
+            <filterchain>
+                <linecontains>
+                    <contains value="version=" />
+                </linecontains>
+                <tokenfilter>
+                    <replaceregex pattern="version=(.*)" replace="\1" flags="gi" />
+                </tokenfilter>
+                <striplinebreaks />
+                <trim />
+            </filterchain>
+        </loadfile>
+        <loadfile srcfile="${plugin.config}" property="plugin.name">
+            <filterchain>
+                <linecontains>
+                    <contains value="name=" />
+                </linecontains>
+                <tokenfilter>
+                    <replaceregex pattern="name=(.*)" replace="\1" flags="gi" />
+                </tokenfilter>
+                <striplinebreaks />
+                <trim />
+            </filterchain>
+        </loadfile>
+        <echo message="name: ${plugin.name} / version: ${plugin.version}" />
+    </target>
+
+    <target name="generateKeys" depends="checkKeys" unless="priv.key.available" description="Generate signing keys">
+        <mkdir dir="${pubkey.dir}" />
+        <java classname="net.i2p.crypto.TrustedUpdate" fork="false" failonerror="true">
+            <classpath>
+                <pathelement location="${i2p.jar}" />
+            </classpath>
+            <arg value="keygen" />
+            <arg value="${pubkey.file}" />
+            <arg value="${privkey.file}" />
+        </java>
+        <java classname="net.i2p.data.Base64" fork="false" failonerror="true">
+            <classpath>
+                <pathelement location="${i2p.jar}" />
+            </classpath>
+            <arg value="encode" />
+            <arg value="${pubkey.file}" />
+            <arg value="${b64key.file}" />
+        </java>
+        <delete dir="./logs" />
+        <chmod perm="444" type="file">
+            <fileset dir="${pubkey.dir}">
+                <include name="${pubkey.file}" />
+                <include name="${b64key.file}" />
+            </fileset>
+        </chmod>
+        <chmod file="${privkey.file}" perm="400" />
+    </target>
+
+    <target name="updatePluginConfig">
+        <fail message="You must have a signer in ${plugin.config}, e.g. signer=job@mail.i2p">
+            <condition>
+                <not>
+                    <resourcecontains resource="${plugin.config}" substring="signer=" />
+                </not>
+            </condition>
+        </fail>
+        <fail message="You must have a version in ${plugin.config}, e.g. version=0.6.6">
+            <condition>
+                <not>
+                    <resourcecontains resource="${plugin.config}" substring="version=" />
+                </not>
+            </condition>
+        </fail>
+        <fail message="You must have a name in ${plugin.config}, e.g. name=foo">
+            <condition>
+                <not>
+                    <resourcecontains resource="${plugin.config}" substring="name=" />
+                </not>
+            </condition>
+        </fail>
+        <script language="javascript">
+            <![CDATA[
+            var PluginDate = Math.floor((new Date()).getTime()/1000) + '000';
+            project.setProperty("plugin.date", PluginDate);
+            ]]>
+        </script>
+        <tempfile property="plugin.config.temp"/>
+        <copy tofile="${plugin.config.temp}" file="${plugin.config}">
+            <filterchain>
+                <linecontainsregexp negate="true">
+                    <regexp pattern="(key=|date=)" />
+                </linecontainsregexp>
+            </filterchain>
+        </copy>
+        <concat append="true" destfile="${plugin.config.temp}">
+            <concat>date=</concat>
+            <propertyresource name="plugin.date"/>
+            <propertyresource name="line.separator" />
+            <concat>key=</concat>
+            <fileset file="${b64key.file}"/>
+            <propertyresource name="line.separator" />
+        </concat>
+        <move file="${plugin.config.temp}" tofile="${plugin.config}" overwrite="true" />
+        <loadfile srcfile="${b64key.file}" property="b64key" />
+    </target>
+
+    <target name="createZipFile">
+        <zip destfile="plugin.zip" basedir="${plugin.dir}" level="9" includes="**" />
+    </target>
+
+    <target name="signPlugin">
+        <java classname="net.i2p.crypto.TrustedUpdate" fork="false" failonerror="true">
+            <classpath>
+                <pathelement location="${i2p.jar}" />
+            </classpath>
+            <arg value="sign" />
+            <arg value="plugin.zip" />
+            <arg value="${plugin.name}.xpi2p" />
+            <arg value="${privkey.file}" />
+            <arg value="${plugin.version}" />
+        </java>
+        <delete file="plugin.zip" />
+    </target>
+
+    <target name="verifyPlugin">
+        <java classname="net.i2p.crypto.TrustedUpdate" fork="false" failonerror="true">
+            <classpath>
+                <pathelement location="${i2p.jar}" />
+            </classpath>
+            <arg value="showversion" />
+            <arg value="${plugin.name}.xpi2p" />
+        </java>
+        <java classname="net.i2p.crypto.TrustedUpdate" fork="false" failonerror="true">
+            <classpath>
+                <pathelement location="${i2p.jar}" />
+            </classpath>
+            <sysproperty key="router.trustedUpdateKeys" value="${b64key}" />
+            <arg value="verifysig" />
+            <arg value="${plugin.name}.xpi2p" />
+        </java>
+    </target>
+
+    <target name="make-plugin" depends="I2P, generateKeys,
+        updatePluginConfig, getPluginInfo, createZipFile, signPlugin, verifyPlugin"
+        description="Build I2P plugin"/>
+</project>
+<!-- vim: set ft=xml ts=4 sw=4 et: -->
