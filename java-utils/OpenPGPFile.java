@@ -207,7 +207,7 @@ public class OpenPGPFile {
                 // Set up the PGP keyring
                 PGPDigestCalculator sha1Calc = new JcaPGPDigestCalculatorProviderBuilder().build().get(HashAlgorithmTags.SHA1);
                 PGPKeyRingGenerator pgpGen = new PGPKeyRingGenerator(
-                    PGPSignature.DEFAULT_CERTIFICATION,
+                    PGPSignature.POSITIVE_CERTIFICATION,
                     this.pgpSigKeyPair,
                     this.identity,
                     sha1Calc,
