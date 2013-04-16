@@ -25,6 +25,7 @@ import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyPacket;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
+import org.bouncycastle.bcpg.UserAttributeSubpacket;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
@@ -37,6 +38,7 @@ import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
+import org.bouncycastle.openpgp.PGPUserAttributeSubpacketVector;
 import org.bouncycastle.openpgp.PGPUtil;
 
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
@@ -53,6 +55,7 @@ import net.i2p.crypto.CryptoConstants;
 import net.i2p.data.Base32;
 import net.i2p.data.Certificate;
 import net.i2p.data.DataFormatException;
+import net.i2p.data.DataStructure;
 import net.i2p.data.Destination;
 import net.i2p.data.PrivateKey;
 import net.i2p.data.PrivateKeyFile;
@@ -60,6 +63,10 @@ import net.i2p.data.PublicKey;
 import net.i2p.data.SigningPrivateKey;
 import net.i2p.data.SigningPublicKey;
 import net.i2p.data.VerifiedDestination;
+
+import org.bouncycastle.bcpg.attr.I2PDataStructureAttribute;
+import org.bouncycastle.openpgp.PGPI2PDataStructureAttributeVector;
+import org.bouncycastle.openpgp.PGPI2PDataStructureAttributeVectorGenerator;
 
 
 /**
@@ -147,6 +154,7 @@ public class OpenPGPFile {
         this.pgpTopKeyPair = null;
         this.pgpSubKeyPairs = new ArrayList<PGPKeyPair>();
         this.identities = new ArrayList<String>();
+        this.dataStructures = null;
     }
 
     /**
@@ -195,6 +203,15 @@ public class OpenPGPFile {
                     new JcePBESecretKeyDecryptorBuilder().build(passPhrase))));
         }
 
+        Iterator itUA = this.pgpTopKeyPair.getPublicKey().getUserAttributes();
+        if (itUA.hasNext()) {
+            this.dataStructures = new PGPI2PDataStructureAttributeVectorGenerator();
+            while (itUA.hasNext()) {
+                PGPUserAttributeSubpacketVector userAttrs = (PGPUserAttributeSubpacketVector)itUA.next();
+                this.dataStructures.setFrom(userAttrs);
+            }
+        }
+
         this.identities.clear();
         Iterator uids = pgpTopSecret.getUserIDs();
         while(uids.hasNext())
@@ -220,9 +237,10 @@ public class OpenPGPFile {
                 if (armor) {
                     secretOut = new ArmoredOutputStream(secretOut);
                 }
-                // Set up the PGP keyring
                 PGPDigestCalculator sha1Calc = new JcaPGPDigestCalculatorProviderBuilder().build().get(HashAlgorithmTags.SHA1);
                 PGPContentSignerBuilder certSigBuilder = new JcaPGPContentSignerBuilder(this.pgpTopKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA1);
+
+                // Add any additional identities to the top public key
                 if (this.identities.size() > 1) {
                     PGPSignatureGenerator sGen;
                     try {
@@ -244,6 +262,30 @@ public class OpenPGPFile {
                     }
                     this.pgpTopKeyPair = new PGPKeyPair(pubKey, this.pgpTopKeyPair.getPrivateKey());
                 }
+
+                // Add any I2P DataStructure attributes to the top public key
+                if (this.dataStructures != null) {
+                    PGPUserAttributeSubpacketVector userAttributes = this.dataStructures.generate();
+                    PGPSignatureGenerator sGen;
+                    try {
+                        sGen = new PGPSignatureGenerator(certSigBuilder);
+                    } catch (Exception e) {
+                        throw new PGPException("creating signature generator: " + e, e);
+                    }
+                    sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpTopKeyPair.getPrivateKey());
+                    sGen.setHashedSubpackets(null);
+                    sGen.setUnhashedSubpackets(null);
+                    PGPPublicKey pubKey = this.pgpTopKeyPair.getPublicKey();
+                    try {
+                        PGPSignature certification = sGen.generateCertification(userAttributes, pubKey);
+                        pubKey = PGPPublicKey.addCertification(pubKey, userAttributes, certification);
+                    } catch (Exception e) {
+                        throw new PGPException("exception doing certification: " + e, e);
+                    }
+                    this.pgpTopKeyPair = new PGPKeyPair(pubKey, this.pgpTopKeyPair.getPrivateKey());
+                }
+
+                // Set up the PGP keyring generator
                 PGPKeyRingGenerator pgpGen = new PGPKeyRingGenerator(
                     PGPSignature.POSITIVE_CERTIFICATION,
                     this.pgpTopKeyPair,
@@ -315,6 +357,9 @@ public class OpenPGPFile {
             pgpEncPubKey.getPublicKeyPacket(),
             encPrivKey)));
 
+        this.dataStructures = new PGPI2PDataStructureAttributeVectorGenerator();
+        this.dataStructures.setI2PDataStructureAttribute(I2PDataStructureAttribute.DEST_CERT, this.dest.getCertificate());
+
         this.identities.clear();
         this.identities.add(Base32.encode(this.dest.calculateHash().getData()) + ".b32.i2p");
     }
@@ -353,10 +398,20 @@ public class OpenPGPFile {
         SigningPublicKey signingPubKey = new SigningPublicKey();
         signingPubKey.setData(padBuffer(signingPubKeyData, SigningPublicKey.KEYSIZE_BYTES));
 
+        Certificate cert = null;
+        if (this.dataStructures != null) {
+            PGPI2PDataStructureAttributeVector dsAttrs = (PGPI2PDataStructureAttributeVector)this.dataStructures.generate();
+            I2PDataStructureAttribute destCert = dsAttrs.getI2PDataStructureAttribute(I2PDataStructureAttribute.DEST_CERT);
+            if (destCert != null)
+                cert = Certificate.create(destCert.getDataStructureData(), 0);
+        }
+        if (cert == null)
+            throw new IllegalArgumentException("OpenPGP keyring does not contain a Destination Certificate");
+
         this.dest = new VerifiedDestination();
         this.dest.setPublicKey(pubKey);
         this.dest.setSigningPublicKey(signingPubKey);
-        this.dest.setCertificate(Certificate.NULL_CERT);
+        this.dest.setCertificate(cert);
 
         this.privKey = new PrivateKey();
         this.privKey.setData(padBuffer(privKeyData, PrivateKey.KEYSIZE_BYTES));
@@ -405,4 +460,5 @@ public class OpenPGPFile {
     private PGPKeyPair pgpTopKeyPair;
     private List<PGPKeyPair> pgpSubKeyPairs;
     private List<String> identities;
+    private PGPI2PDataStructureAttributeVectorGenerator dataStructures;
 }
