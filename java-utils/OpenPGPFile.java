@@ -180,22 +180,23 @@ public class OpenPGPFile {
             PGPUtil.getDecoderStream(new FileInputStream(pgpFile)),
             new JcaKeyFingerprintCalculator());
         Iterator it = pgpKeys.getSecretKeys();
-        // Only take the first two keys, and assume that the master
-        // key is the DSA signing key and the subkey is the ElGamal
-        // encryption key.
-        PGPSecretKey pgpSigSecret = (PGPSecretKey)it.next();
-        PGPSecretKey pgpEncSecret = (PGPSecretKey)it.next();
+
+        PGPSecretKey pgpTopSecret = (PGPSecretKey)it.next();
         this.pgpTopKeyPair = new PGPKeyPair(
-            pgpSigSecret.getPublicKey(),
-            pgpSigSecret.extractPrivateKey(
+            pgpTopSecret.getPublicKey(),
+            pgpTopSecret.extractPrivateKey(
                 new JcePBESecretKeyDecryptorBuilder().build(passPhrase)));
-        this.pgpSubKeyPairs.add(new PGPKeyPair(
-            pgpEncSecret.getPublicKey(),
-            pgpEncSecret.extractPrivateKey(
-                new JcePBESecretKeyDecryptorBuilder().build(passPhrase))));
+
+        while (it.hasNext()) {
+            PGPSecretKey pgpSubSecret = (PGPSecretKey)it.next();
+            this.pgpSubKeyPairs.add(new PGPKeyPair(
+                pgpSubSecret.getPublicKey(),
+                pgpSubSecret.extractPrivateKey(
+                    new JcePBESecretKeyDecryptorBuilder().build(passPhrase))));
+        }
 
         this.identities.clear();
-        Iterator uids = pgpSigSecret.getUserIDs();
+        Iterator uids = pgpTopSecret.getUserIDs();
         while(uids.hasNext())
             this.identities.add((String)uids.next());
     }
