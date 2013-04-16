@@ -144,8 +144,8 @@ public class OpenPGPFile {
         this.privKey = null;
         this.signingPrivKey = null;
         this.lastMod = null;
-        this.pgpSigKeyPair = null;
-        this.pgpEncKeyPair = null;
+        this.pgpTopKeyPair = null;
+        this.pgpSubKeyPairs = new ArrayList<PGPKeyPair>();
         this.identities = new ArrayList<String>();
     }
 
@@ -185,14 +185,14 @@ public class OpenPGPFile {
         // encryption key.
         PGPSecretKey pgpSigSecret = (PGPSecretKey)it.next();
         PGPSecretKey pgpEncSecret = (PGPSecretKey)it.next();
-        this.pgpSigKeyPair = new PGPKeyPair(
+        this.pgpTopKeyPair = new PGPKeyPair(
             pgpSigSecret.getPublicKey(),
             pgpSigSecret.extractPrivateKey(
                 new JcePBESecretKeyDecryptorBuilder().build(passPhrase)));
-        this.pgpEncKeyPair = new PGPKeyPair(
+        this.pgpSubKeyPairs.add(new PGPKeyPair(
             pgpEncSecret.getPublicKey(),
             pgpEncSecret.extractPrivateKey(
-                new JcePBESecretKeyDecryptorBuilder().build(passPhrase)));
+                new JcePBESecretKeyDecryptorBuilder().build(passPhrase))));
 
         this.identities.clear();
         Iterator uids = pgpSigSecret.getUserIDs();
@@ -221,7 +221,7 @@ public class OpenPGPFile {
                 }
                 // Set up the PGP keyring
                 PGPDigestCalculator sha1Calc = new JcaPGPDigestCalculatorProviderBuilder().build().get(HashAlgorithmTags.SHA1);
-                PGPContentSignerBuilder certSigBuilder = new JcaPGPContentSignerBuilder(this.pgpSigKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA1);
+                PGPContentSignerBuilder certSigBuilder = new JcaPGPContentSignerBuilder(this.pgpTopKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA1);
                 if (this.identities.size() > 1) {
                     PGPSignatureGenerator sGen;
                     try {
@@ -229,10 +229,10 @@ public class OpenPGPFile {
                     } catch (Exception e) {
                         throw new PGPException("creating signature generator: " + e, e);
                     }
-                    sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpSigKeyPair.getPrivateKey());
+                    sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpTopKeyPair.getPrivateKey());
                     sGen.setHashedSubpackets(null);
                     sGen.setUnhashedSubpackets(null);
-                    PGPPublicKey pubKey = this.pgpSigKeyPair.getPublicKey();
+                    PGPPublicKey pubKey = this.pgpTopKeyPair.getPublicKey();
                     for (int i = 1; i < this.identities.size(); i++) {
                         try {
                             PGPSignature certification = sGen.generateCertification(this.identities.get(i), pubKey);
@@ -241,18 +241,20 @@ public class OpenPGPFile {
                             throw new PGPException("exception doing certification: " + e, e);
                         }
                     }
-                    this.pgpSigKeyPair = new PGPKeyPair(pubKey, this.pgpSigKeyPair.getPrivateKey());
+                    this.pgpTopKeyPair = new PGPKeyPair(pubKey, this.pgpTopKeyPair.getPrivateKey());
                 }
                 PGPKeyRingGenerator pgpGen = new PGPKeyRingGenerator(
                     PGPSignature.POSITIVE_CERTIFICATION,
-                    this.pgpSigKeyPair,
+                    this.pgpTopKeyPair,
                     this.identities.get(0),
                     sha1Calc,
                     null,
                     null,
                     certSigBuilder,
                     new JcePBESecretKeyEncryptorBuilder(SymmetricKeyAlgorithmTags.CAST5, sha1Calc).build(passPhrase));
-                pgpGen.addSubKey(this.pgpEncKeyPair);
+                for (int i = 0; i < this.pgpSubKeyPairs.size(); i++) {
+                    pgpGen.addSubKey(this.pgpSubKeyPairs.get(i));
+                }
                 // Write out the secret keyring
                 pgpGen.generateSecretKeyRing().encode(secretOut);
                 secretOut.flush();
@@ -299,7 +301,7 @@ public class OpenPGPFile {
         PGPPublicKey pgpSigPubKey = new PGPPublicKey(
             new PublicKeyPacket(PublicKeyAlgorithmTags.DSA, this.lastMod, sigPubKey),
             new JcaKeyFingerprintCalculator());
-        this.pgpSigKeyPair = new PGPKeyPair(pgpSigPubKey, new PGPPrivateKey(
+        this.pgpTopKeyPair = new PGPKeyPair(pgpSigPubKey, new PGPPrivateKey(
             pgpSigPubKey.getKeyID(),
             pgpSigPubKey.getPublicKeyPacket(),
             sigPrivKey));
@@ -307,10 +309,10 @@ public class OpenPGPFile {
         PGPPublicKey pgpEncPubKey = new PGPPublicKey(
             new PublicKeyPacket(PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT, this.lastMod, encPubKey),
             new JcaKeyFingerprintCalculator());
-        this.pgpEncKeyPair = new PGPKeyPair(pgpEncPubKey, new PGPPrivateKey(
+        this.pgpSubKeyPairs.add(new PGPKeyPair(pgpEncPubKey, new PGPPrivateKey(
             pgpEncPubKey.getKeyID(),
             pgpEncPubKey.getPublicKeyPacket(),
-            encPrivKey));
+            encPrivKey)));
 
         this.identities.clear();
         this.identities.add(Base32.encode(this.dest.calculateHash().getData()) + ".b32.i2p");
@@ -324,10 +326,10 @@ public class OpenPGPFile {
      * thrown.
      */
     public void importKeys() throws IllegalArgumentException {
-        DSAPublicBCPGKey sigPubKey = (DSAPublicBCPGKey)pgpSigKeyPair.getPublicKey().getPublicKeyPacket().getKey();
-        DSASecretBCPGKey sigPrivKey = (DSASecretBCPGKey)pgpSigKeyPair.getPrivateKey().getPrivateKeyDataPacket();
-        ElGamalPublicBCPGKey encPubKey = (ElGamalPublicBCPGKey)pgpEncKeyPair.getPublicKey().getPublicKeyPacket().getKey();
-        ElGamalSecretBCPGKey encPrivKey = (ElGamalSecretBCPGKey)pgpEncKeyPair.getPrivateKey().getPrivateKeyDataPacket();
+        DSAPublicBCPGKey sigPubKey = (DSAPublicBCPGKey)pgpTopKeyPair.getPublicKey().getPublicKeyPacket().getKey();
+        DSASecretBCPGKey sigPrivKey = (DSASecretBCPGKey)pgpTopKeyPair.getPrivateKey().getPrivateKeyDataPacket();
+        ElGamalPublicBCPGKey encPubKey = (ElGamalPublicBCPGKey)pgpSubKeyPairs.get(0).getPublicKey().getPublicKeyPacket().getKey();
+        ElGamalSecretBCPGKey encPrivKey = (ElGamalSecretBCPGKey)pgpSubKeyPairs.get(0).getPrivateKey().getPrivateKeyDataPacket();
 
         // Verify the cryptographic constants
         if (!CryptoConstants.dsap.equals(sigPubKey.getP()) ||
@@ -361,7 +363,7 @@ public class OpenPGPFile {
         this.signingPrivKey = new SigningPrivateKey();
         this.signingPrivKey.setData(padBuffer(signingPrivKeyData, SigningPrivateKey.KEYSIZE_BYTES));
 
-        this.lastMod = pgpSigKeyPair.getPublicKey().getCreationTime();
+        this.lastMod = pgpTopKeyPair.getPublicKey().getCreationTime();
     }
 
     /**
@@ -399,7 +401,7 @@ public class OpenPGPFile {
     private SigningPrivateKey signingPrivKey;
     private Date lastMod;
     // OpenPGP key representations
-    private PGPKeyPair pgpSigKeyPair;
-    private PGPKeyPair pgpEncKeyPair;
+    private PGPKeyPair pgpTopKeyPair;
+    private List<PGPKeyPair> pgpSubKeyPairs;
     private List<String> identities;
 }
