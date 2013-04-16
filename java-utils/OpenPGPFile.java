@@ -11,6 +11,8 @@ import java.io.OutputStream;
 import java.lang.IllegalArgumentException;
 import java.security.Security;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Iterator;
 
 import org.bouncycastle.bcpg.ArmoredOutputStream;
@@ -34,8 +36,10 @@ import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.PGPUtil;
 
+import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
 
 import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
@@ -79,17 +83,21 @@ public class OpenPGPFile {
             System.err.println("Options:");
             System.err.println(" -a, --armor");
             System.err.println(" -f, --force-write");
+            System.err.println(" -I, --identity    <identity>");
             return;
         }
         // Parse options
         boolean armorOutput = false;
         boolean forceWrite = false;
+        String identity = "";
         int numOpts = 0;
         while(numOpts < args.length) {
             if (args[numOpts].equals("-a") || args[numOpts].equals("--armor")) {
                 armorOutput = true;
             } else if (args[numOpts].equals("-f") || args[numOpts].equals("--force-write")) {
                 forceWrite = true;
+            } else if (args[numOpts].equals("-I") || args[numOpts].equals("--identity")) {
+                identity = args[++numOpts];
             } else {
                 // No more options
                 break;
@@ -110,6 +118,8 @@ public class OpenPGPFile {
                 opf = new OpenPGPFile();
                 opf.readPrivateKeyFile(new File(args[numOpts+1]));
                 opf.exportKeys();
+                if (identity.length() > 0)
+                    opf.addIdentity(identity);
                 opf.writeOpenPGPFile(new File(args[numOpts+2]), passPhrase, armorOutput, forceWrite, (args.length-numOpts>3 ? new File(args[numOpts+3]) : null));
             } else if (args[numOpts].equals("-i") || args[numOpts].equals("--import")) {
                 if (args.length-numOpts < 3) {
@@ -136,6 +146,7 @@ public class OpenPGPFile {
         this.lastMod = null;
         this.pgpSigKeyPair = null;
         this.pgpEncKeyPair = null;
+        this.identities = new ArrayList<String>();
     }
 
     /**
@@ -182,7 +193,11 @@ public class OpenPGPFile {
             pgpEncSecret.getPublicKey(),
             pgpEncSecret.extractPrivateKey(
                 new JcePBESecretKeyDecryptorBuilder().build(passPhrase)));
-        this.identity = (String)pgpSigSecret.getUserIDs().next();
+
+        this.identities.clear();
+        Iterator uids = pgpSigSecret.getUserIDs();
+        while(uids.hasNext())
+            this.identities.add((String)uids.next());
     }
 
     /**
@@ -206,14 +221,36 @@ public class OpenPGPFile {
                 }
                 // Set up the PGP keyring
                 PGPDigestCalculator sha1Calc = new JcaPGPDigestCalculatorProviderBuilder().build().get(HashAlgorithmTags.SHA1);
+                PGPContentSignerBuilder certSigBuilder = new JcaPGPContentSignerBuilder(this.pgpSigKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA1);
+                if (this.identities.size() > 1) {
+                    PGPSignatureGenerator sGen;
+                    try {
+                        sGen = new PGPSignatureGenerator(certSigBuilder);
+                    } catch (Exception e) {
+                        throw new PGPException("creating signature generator: " + e, e);
+                    }
+                    sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpSigKeyPair.getPrivateKey());
+                    sGen.setHashedSubpackets(null);
+                    sGen.setUnhashedSubpackets(null);
+                    PGPPublicKey pubKey = this.pgpSigKeyPair.getPublicKey();
+                    for (int i = 1; i < this.identities.size(); i++) {
+                        try {
+                            PGPSignature certification = sGen.generateCertification(this.identities.get(i), pubKey);
+                            pubKey = PGPPublicKey.addCertification(pubKey, this.identities.get(i), certification);
+                        } catch (Exception e) {
+                            throw new PGPException("exception doing certification: " + e, e);
+                        }
+                    }
+                    this.pgpSigKeyPair = new PGPKeyPair(pubKey, this.pgpSigKeyPair.getPrivateKey());
+                }
                 PGPKeyRingGenerator pgpGen = new PGPKeyRingGenerator(
                     PGPSignature.POSITIVE_CERTIFICATION,
                     this.pgpSigKeyPair,
-                    this.identity,
+                    this.identities.get(0),
                     sha1Calc,
                     null,
                     null,
-                    new JcaPGPContentSignerBuilder(this.pgpSigKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA1),
+                    certSigBuilder,
                     new JcePBESecretKeyEncryptorBuilder(SymmetricKeyAlgorithmTags.CAST5, sha1Calc).build(passPhrase));
                 pgpGen.addSubKey(this.pgpEncKeyPair);
                 // Write out the secret keyring
@@ -275,7 +312,8 @@ public class OpenPGPFile {
             pgpEncPubKey.getPublicKeyPacket(),
             encPrivKey));
 
-        this.identity = Base32.encode(this.dest.calculateHash().getData()) + ".b32.i2p";
+        this.identities.clear();
+        this.identities.add(Base32.encode(this.dest.calculateHash().getData()) + ".b32.i2p");
     }
 
     /**
@@ -327,6 +365,16 @@ public class OpenPGPFile {
     }
 
     /**
+     * Adds an identity to the list for this keyring. The identities list is
+     * cleared when the OpenPGP representations are changed, so this must be
+     * called afterwards.
+     */
+    public void addIdentity(String identity) {
+        if (!this.identities.contains(identity))
+            this.identities.add(identity);
+    }
+
+    /**
      * Pad the buffer w/ leading 0s or trim off leading bits so the result is the
      * given length.  
      */
@@ -353,5 +401,5 @@ public class OpenPGPFile {
     // OpenPGP key representations
     private PGPKeyPair pgpSigKeyPair;
     private PGPKeyPair pgpEncKeyPair;
-    private String identity;
+    private List<String> identities;
 }
