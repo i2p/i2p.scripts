@@ -4,6 +4,7 @@ To use OpenPGPDest
 1) Copy the classes into the i2p.i2p branch:
 OpenPGPDest                                 -> core/java/src/net/i2p/util
 OpenPGPFile                                 -> core/java/src/net/i2p/util
+I2PAttributeSubpacketTags                   -> core/java/src/org/bouncycastle/bcpg
 I2PDataStructureAttribute                   -> core/java/src/org/bouncycastle/bcpg/attr
 PGPI2PDataStructureAttributeVector          -> core/java/src/org/bouncycastle/openpgp
 PGPI2PDataStructureAttributeVectorGenerator -> core/java/src/org/bouncycastle/openpgp

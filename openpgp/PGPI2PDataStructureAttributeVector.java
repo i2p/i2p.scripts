@@ -3,6 +3,7 @@ package org.bouncycastle.openpgp;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bouncycastle.bcpg.I2PAttributeSubpacketTags;
 import org.bouncycastle.bcpg.UserAttributeSubpacket;
 import org.bouncycastle.bcpg.attr.I2PDataStructureAttribute;
 import org.bouncycastle.openpgp.PGPUserAttributeSubpacketVector;
@@ -28,7 +29,7 @@ public class PGPI2PDataStructureAttributeVector extends PGPUserAttributeSubpacke
     }
 
     public I2PDataStructureAttribute getI2PDataStructureAttribute(int dsType) {
-        I2PDataStructureAttribute[] subpackets = this.getSubpackets(I2PDataStructureAttribute.I2P_DATASTRUCTURE_ATTRIBUTE);
+        I2PDataStructureAttribute[] subpackets = this.getSubpackets(I2PAttributeSubpacketTags.DATASTRUCTURE_ATTRIBUTE);
         if (subpackets == null) {
             return null;
         }

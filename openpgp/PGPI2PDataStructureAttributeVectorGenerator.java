@@ -1,6 +1,6 @@
 package org.bouncycastle.openpgp;
 
-import org.bouncycastle.bcpg.UserAttributeSubpacket;
+import org.bouncycastle.bcpg.I2PAttributeSubpacketTags;
 import org.bouncycastle.bcpg.attr.I2PDataStructureAttribute;
 import org.bouncycastle.openpgp.PGPUserAttributeSubpacketVector;
 
@@ -25,7 +25,7 @@ public class PGPI2PDataStructureAttributeVectorGenerator {
 
     public void setFrom(PGPUserAttributeSubpacketVector userAttrs) {
         for (int i = 0; i < userAttrs.packets.length; i++) {
-            if (userAttrs.packets[i].getType() == I2PDataStructureAttribute.I2P_DATASTRUCTURE_ATTRIBUTE)
+            if (userAttrs.packets[i].getType() == I2PAttributeSubpacketTags.DATASTRUCTURE_ATTRIBUTE)
                 setI2PDataStructureAttribute(userAttrs.packets[i].getData());
         }
     }

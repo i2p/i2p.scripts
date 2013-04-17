@@ -5,6 +5,8 @@ import java.io.IOException;
 
 import org.bouncycastle.bcpg.UserAttributeSubpacket;
 
+import org.bouncycastle.bcpg.I2PAttributeSubpacketTags;
+
 import net.i2p.data.DataFormatException;
 import net.i2p.data.DataStructure;
 
@@ -12,8 +14,6 @@ import net.i2p.data.DataStructure;
  * Basic type for an I2P DataStructure attribute packet.
  */
 public class I2PDataStructureAttribute extends UserAttributeSubpacket {
-    public static final int I2P_DATASTRUCTURE_ATTRIBUTE = 100;
-
     public static final int DEST_CERT = 1;
 
     private static final byte[] ZEROES = new byte[12];
@@ -24,7 +24,7 @@ public class I2PDataStructureAttribute extends UserAttributeSubpacket {
     private byte[]  dsData;
 
     public I2PDataStructureAttribute(byte[] data) {
-        super(I2P_DATASTRUCTURE_ATTRIBUTE, data);
+        super(I2PAttributeSubpacketTags.DATASTRUCTURE_ATTRIBUTE, data);
 
         hdrLength = ((data[1] & 0xff) << 8) | (data[0] & 0xff);
         version = data[2] & 0xff;
