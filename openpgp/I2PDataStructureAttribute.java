@@ -14,7 +14,7 @@ import net.i2p.data.DataStructure;
  * Basic type for an I2P DataStructure attribute packet.
  */
 public class I2PDataStructureAttribute extends UserAttributeSubpacket {
-    public static final int DEST_CERT = 1;
+    public static final int CERTIFICATE = 1;
 
     private static final byte[] ZEROES = new byte[12];
 

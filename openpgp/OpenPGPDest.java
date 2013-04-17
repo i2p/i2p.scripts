@@ -198,7 +198,7 @@ public class OpenPGPDest extends OpenPGPFile {
             encPrivKey)));
 
         this.dataStructures = new PGPI2PDataStructureAttributeVectorGenerator();
-        this.dataStructures.setI2PDataStructureAttribute(I2PDataStructureAttribute.DEST_CERT, this.dest.getCertificate());
+        this.dataStructures.setI2PDataStructureAttribute(I2PDataStructureAttribute.CERTIFICATE, this.dest.getCertificate());
 
         this.identities.clear();
         this.identities.add(Base32.encode(this.dest.calculateHash().getData()) + ".b32.i2p");
@@ -241,7 +241,7 @@ public class OpenPGPDest extends OpenPGPFile {
         Certificate cert = null;
         if (this.dataStructures != null) {
             PGPI2PDataStructureAttributeVector dsAttrs = (PGPI2PDataStructureAttributeVector)this.dataStructures.generate();
-            I2PDataStructureAttribute destCert = dsAttrs.getI2PDataStructureAttribute(I2PDataStructureAttribute.DEST_CERT);
+            I2PDataStructureAttribute destCert = dsAttrs.getI2PDataStructureAttribute(I2PDataStructureAttribute.CERTIFICATE);
             if (destCert != null)
                 cert = Certificate.create(destCert.getDataStructureData(), 0);
         }
