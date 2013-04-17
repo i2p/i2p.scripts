@@ -1,7 +1,8 @@
-To use OpenPGPFile
+To use OpenPGPDest
 ------------------
 
 1) Copy the classes into the i2p.i2p branch:
+OpenPGPDest                                 -> core/java/src/net/i2p/util
 OpenPGPFile                                 -> core/java/src/net/i2p/util
 I2PDataStructureAttribute                   -> core/java/src/org/bouncycastle/bcpg/attr
 PGPI2PDataStructureAttributeVector          -> core/java/src/org/bouncycastle/openpgp
@@ -17,4 +18,4 @@ of the compile target.
 
 5) ant buildCore
 
-6) java -cp build/i2p.jar:path/to/bcprov.jar:path/to/bcpg.jar net.i2p.util.OpenPGPFile -?
+6) java -cp build/i2p.jar:path/to/bcprov.jar:path/to/bcpg.jar net.i2p.util.OpenPGPDest -?
