@@ -352,6 +352,7 @@ public class OpenPGPFile {
         PGPPublicKey pgpEncPubKey = new PGPPublicKey(
             new PublicKeyPacket(PublicKeyAlgorithmTags.ELGAMAL_ENCRYPT, this.lastMod, encPubKey),
             new JcaKeyFingerprintCalculator());
+        this.pgpSubKeyPairs.clear();
         this.pgpSubKeyPairs.add(new PGPKeyPair(pgpEncPubKey, new PGPPrivateKey(
             pgpEncPubKey.getKeyID(),
             pgpEncPubKey.getPublicKeyPacket(),
