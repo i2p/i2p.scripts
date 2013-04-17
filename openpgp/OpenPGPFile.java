@@ -74,6 +74,7 @@ public abstract class OpenPGPFile {
                 new JcePBESecretKeyDecryptorBuilder().build(passPhrase)));
 
         // Set any subkey pairs
+        this.pgpSubKeyPairs.clear();
         while (it.hasNext()) {
             PGPSecretKey pgpSubSecret = (PGPSecretKey)it.next();
             this.pgpSubKeyPairs.add(new PGPKeyPair(
@@ -83,6 +84,7 @@ public abstract class OpenPGPFile {
         }
 
         // Set any included I2P DataStructures (other user attributes are ignored)
+        this.dataStructures = null;
         Iterator itUA = this.pgpTopKeyPair.getPublicKey().getUserAttributes();
         if (itUA.hasNext()) {
             this.dataStructures = new PGPI2PDataStructureAttributeVectorGenerator();
