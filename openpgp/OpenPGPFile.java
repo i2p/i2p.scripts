@@ -90,6 +90,7 @@ public abstract class OpenPGPFile {
             this.dataStructures = new PGPI2PDataStructureAttributeVectorGenerator();
             while (itUA.hasNext()) {
                 PGPUserAttributeSubpacketVector userAttrs = (PGPUserAttributeSubpacketVector)itUA.next();
+                // Check the subpacket vector for I2P DataStructures
                 this.dataStructures.setFrom(userAttrs);
             }
         }
@@ -122,15 +123,15 @@ public abstract class OpenPGPFile {
                 }
                 PGPDigestCalculator sha1Calc = new JcaPGPDigestCalculatorProviderBuilder().build().get(HashAlgorithmTags.SHA1);
                 PGPContentSignerBuilder certSigBuilder = new JcaPGPContentSignerBuilder(this.pgpTopKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA1);
+                PGPSignatureGenerator sGen;
+                try {
+                    sGen = new PGPSignatureGenerator(certSigBuilder);
+                } catch (Exception e) {
+                    throw new PGPException("creating signature generator: " + e, e);
+                }
 
                 // Add any additional identities to the top public key
                 if (this.identities.size() > 1) {
-                    PGPSignatureGenerator sGen;
-                    try {
-                        sGen = new PGPSignatureGenerator(certSigBuilder);
-                    } catch (Exception e) {
-                        throw new PGPException("creating signature generator: " + e, e);
-                    }
                     sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpTopKeyPair.getPrivateKey());
                     sGen.setHashedSubpackets(null);
                     sGen.setUnhashedSubpackets(null);
@@ -149,12 +150,6 @@ public abstract class OpenPGPFile {
                 // Add any I2P DataStructure attributes to the top public key
                 if (this.dataStructures != null) {
                     PGPUserAttributeSubpacketVector userAttributes = this.dataStructures.generate();
-                    PGPSignatureGenerator sGen;
-                    try {
-                        sGen = new PGPSignatureGenerator(certSigBuilder);
-                    } catch (Exception e) {
-                        throw new PGPException("creating signature generator: " + e, e);
-                    }
                     sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpTopKeyPair.getPrivateKey());
                     sGen.setHashedSubpackets(null);
                     sGen.setUnhashedSubpackets(null);
