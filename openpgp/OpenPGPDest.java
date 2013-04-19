@@ -67,6 +67,7 @@ public class OpenPGPDest extends OpenPGPFile {
             System.err.println("Syntax: OpenPGPDest [options] <command>");
             System.err.println("");
             System.err.println("Commands:");
+            System.err.println(" -b, --b64    <pubFile>");
             System.err.println(" -e, --export <eepPriv.dat> <pgpFile>");
             System.err.println(" -i, --import <pgpFile> <eepPriv.dat>");
             System.err.println("");
@@ -97,7 +98,16 @@ public class OpenPGPDest extends OpenPGPFile {
         // Parse commands
         OpenPGPDest opf = null;
         try {
-            if (args[numOpts].equals("-e") || args[numOpts].equals("--export")) {
+            if (args[numOpts].equals("-b") || args[numOpts].equals("--b64")) {
+                if (args.length-numOpts < 2) {
+                    System.err.println("Usage: OpenPGPDest "+args[numOpts]+" <pubFile>");
+                    return;
+                }
+                opf = new OpenPGPDest();
+                opf.readOpenPGPPublicFile(new File(args[numOpts+1]));
+                opf.importKeys();
+                System.out.println(opf.getDestination().toBase64());
+            } else if (args[numOpts].equals("-e") || args[numOpts].equals("--export")) {
                 if (args.length-numOpts < 3) {
                     System.err.println("Usage: OpenPGPDest "+args[numOpts]+" <eepPriv.dat> <pgpFile> [pubFile]");
                     return;
@@ -120,7 +130,7 @@ public class OpenPGPDest extends OpenPGPFile {
                 System.out.print("GPG passphrase to decrypt with: ");
                 char[] passPhrase = br.readLine().toCharArray();
                 opf = new OpenPGPDest();
-                opf.readOpenPGPFile(new File(args[numOpts+1]), passPhrase);
+                opf.readOpenPGPSecretFile(new File(args[numOpts+1]), passPhrase);
                 opf.importKeys();
                 opf.writePrivateKeyFile(new File(args[numOpts+2]), forceWrite);
             }
@@ -213,9 +223,7 @@ public class OpenPGPDest extends OpenPGPFile {
      */
     public void importKeys() throws IllegalArgumentException {
         DSAPublicBCPGKey sigPubKey = (DSAPublicBCPGKey)this.pgpTopKeyPair.getPublicKey().getPublicKeyPacket().getKey();
-        DSASecretBCPGKey sigPrivKey = (DSASecretBCPGKey)this.pgpTopKeyPair.getPrivateKey().getPrivateKeyDataPacket();
         ElGamalPublicBCPGKey encPubKey = (ElGamalPublicBCPGKey)this.pgpSubKeyPairs.get(0).getPublicKey().getPublicKeyPacket().getKey();
-        ElGamalSecretBCPGKey encPrivKey = (ElGamalSecretBCPGKey)this.pgpSubKeyPairs.get(0).getPrivateKey().getPrivateKeyDataPacket();
 
         // Verify the cryptographic constants
         if (!CryptoConstants.dsap.equals(sigPubKey.getP()) ||
@@ -228,9 +236,7 @@ public class OpenPGPDest extends OpenPGPFile {
         // BigInteger.toByteArray returns SIGNED integers, but since they're
         // positive, signed two's complement is the same as unsigned
         byte[] pubKeyData = encPubKey.getY().toByteArray();
-        byte[] privKeyData = encPrivKey.getX().toByteArray();
         byte[] signingPubKeyData = sigPubKey.getY().toByteArray();
-        byte[] signingPrivKeyData = sigPrivKey.getX().toByteArray();
 
         PublicKey pubKey = new PublicKey();
         pubKey.setData(padBuffer(pubKeyData, PublicKey.KEYSIZE_BYTES));
@@ -253,13 +259,28 @@ public class OpenPGPDest extends OpenPGPFile {
         this.dest.setSigningPublicKey(signingPubKey);
         this.dest.setCertificate(cert);
 
-        this.privKey = new PrivateKey();
-        this.privKey.setData(padBuffer(privKeyData, PrivateKey.KEYSIZE_BYTES));
+        if (this.pgpTopKeyPair.getPrivateKey() != null && this.pgpSubKeyPairs.get(0).getPrivateKey() != null) {
+            DSASecretBCPGKey sigPrivKey = (DSASecretBCPGKey)this.pgpTopKeyPair.getPrivateKey().getPrivateKeyDataPacket();
+            ElGamalSecretBCPGKey encPrivKey = (ElGamalSecretBCPGKey)this.pgpSubKeyPairs.get(0).getPrivateKey().getPrivateKeyDataPacket();
 
-        this.signingPrivKey = new SigningPrivateKey();
-        this.signingPrivKey.setData(padBuffer(signingPrivKeyData, SigningPrivateKey.KEYSIZE_BYTES));
+            byte[] privKeyData = encPrivKey.getX().toByteArray();
+            byte[] signingPrivKeyData = sigPrivKey.getX().toByteArray();
+
+            this.privKey = new PrivateKey();
+            this.privKey.setData(padBuffer(privKeyData, PrivateKey.KEYSIZE_BYTES));
+
+            this.signingPrivKey = new SigningPrivateKey();
+            this.signingPrivKey.setData(padBuffer(signingPrivKeyData, SigningPrivateKey.KEYSIZE_BYTES));
+        } else {
+            this.privKey = null;
+            this.signingPrivKey = null;
+        }
 
         this.lastMod = pgpTopKeyPair.getPublicKey().getCreationTime();
+    }
+
+    public Destination getDestination() {
+        return this.dest;
     }
 
 

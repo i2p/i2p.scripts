@@ -20,6 +20,7 @@ import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPKeyRingGenerator;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPSignature;
@@ -58,9 +59,48 @@ public abstract class OpenPGPFile {
     }
 
     /**
-     * Read in OpenPGP keys from a file.
+     * Read in OpenPGP keys from a public keyring file.
      */
-    public void readOpenPGPFile(File pgpFile, char[] passPhrase) throws FileNotFoundException, IOException, PGPException {
+    public void readOpenPGPPublicFile(File pubFile) throws FileNotFoundException, IOException, PGPException {
+        PGPPublicKeyRing pubKeys = new PGPPublicKeyRing(
+            PGPUtil.getDecoderStream(new FileInputStream(pubFile)),
+            new JcaKeyFingerprintCalculator());
+        Iterator it = pubKeys.getPublicKeys();
+
+        // Set the top key pair
+        PGPPublicKey pgpTopPublic = (PGPPublicKey)it.next();
+        this.pgpTopKeyPair = new PGPKeyPair(pgpTopPublic, null);
+
+        // Set any subkey pairs
+        this.pgpSubKeyPairs.clear();
+        while (it.hasNext()) {
+            PGPPublicKey pgpSubPublic = (PGPPublicKey)it.next();
+            this.pgpSubKeyPairs.add(new PGPKeyPair(pgpSubPublic, null));
+        }
+
+        // Set any included I2P DataStructures (other user attributes are ignored)
+        this.dataStructures = null;
+        Iterator itUA = pgpTopPublic.getUserAttributes();
+        if (itUA.hasNext()) {
+            this.dataStructures = new PGPI2PDataStructureAttributeVectorGenerator();
+            while (itUA.hasNext()) {
+                PGPUserAttributeSubpacketVector userAttrs = (PGPUserAttributeSubpacketVector)itUA.next();
+                // Check the subpacket vector for I2P DataStructures
+                this.dataStructures.setFrom(userAttrs);
+            }
+        }
+
+        // Set any included identities
+        this.identities.clear();
+        Iterator uids = pgpTopPublic.getUserIDs();
+        while(uids.hasNext())
+            this.identities.add((String)uids.next());
+    }
+
+    /**
+     * Read in OpenPGP keys from a secret keyring file.
+     */
+    public void readOpenPGPSecretFile(File pgpFile, char[] passPhrase) throws FileNotFoundException, IOException, PGPException {
         PGPSecretKeyRing pgpKeys = new PGPSecretKeyRing(
             PGPUtil.getDecoderStream(new FileInputStream(pgpFile)),
             new JcaKeyFingerprintCalculator());
