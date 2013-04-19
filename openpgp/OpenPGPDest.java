@@ -67,7 +67,7 @@ public class OpenPGPDest extends OpenPGPFile {
             System.err.println("Syntax: OpenPGPDest [options] <command>");
             System.err.println("");
             System.err.println("Commands:");
-            System.err.println(" -b, --b64    <pubFile>");
+            System.err.println(" -b, --b64    [pubFile]");
             System.err.println(" -e, --export <eepPriv.dat> <pgpFile> [pubFile]");
             System.err.println(" -i, --import <pgpFile> <eepPriv.dat>");
             System.err.println("");
@@ -99,12 +99,12 @@ public class OpenPGPDest extends OpenPGPFile {
         OpenPGPDest opf = null;
         try {
             if (args[numOpts].equals("-b") || args[numOpts].equals("--b64")) {
-                if (args.length-numOpts < 2) {
-                    System.err.println("Usage: OpenPGPDest "+args[numOpts]+" <pubFile>");
-                    return;
-                }
                 opf = new OpenPGPDest();
-                opf.readOpenPGPPublicKeyRing(new File(args[numOpts+1]));
+                if (args.length-numOpts < 2) {
+                    opf.readOpenPGPPublicKeyRing(System.in);
+                } else {
+                    opf.readOpenPGPPublicKeyRing(new File(args[numOpts+1]));
+                }
                 opf.importKeys();
                 System.out.println(opf.getDestination().toBase64());
             } else if (args[numOpts].equals("-e") || args[numOpts].equals("--export")) {
