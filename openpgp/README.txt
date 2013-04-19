@@ -20,3 +20,6 @@ of the compile target.
 5) ant buildCore
 
 6) java -cp build/i2p.jar:path/to/bcprov.jar:path/to/bcpg.jar net.i2p.util.OpenPGPDest -?
+
+OpenPGPDest can be used with ExecNamingService via the included lookup.sh; edit
+the variables within to point to the correct key server and the .jar libraries.
