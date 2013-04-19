@@ -68,7 +68,7 @@ public class OpenPGPDest extends OpenPGPFile {
             System.err.println("");
             System.err.println("Commands:");
             System.err.println(" -b, --b64    <pubFile>");
-            System.err.println(" -e, --export <eepPriv.dat> <pgpFile>");
+            System.err.println(" -e, --export <eepPriv.dat> <pgpFile> [pubFile]");
             System.err.println(" -i, --import <pgpFile> <eepPriv.dat>");
             System.err.println("");
             System.err.println("Options:");
