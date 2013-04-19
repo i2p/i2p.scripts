@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.IllegalArgumentException;
@@ -61,9 +62,16 @@ public abstract class OpenPGPFile {
     /**
      * Read in OpenPGP keys from a public keyring file.
      */
-    public void readOpenPGPPublicFile(File pubFile) throws FileNotFoundException, IOException, PGPException {
+    public void readOpenPGPPublicKeyRing(File pubFile) throws FileNotFoundException, IOException, PGPException {
+        readOpenPGPPublicKeyRing(new FileInputStream(pubFile));
+    }
+
+    /**
+     * Read in OpenPGP keys from a public keyring file.
+     */
+    public void readOpenPGPPublicKeyRing(InputStream pubStream) throws FileNotFoundException, IOException, PGPException {
         PGPPublicKeyRing pubKeys = new PGPPublicKeyRing(
-            PGPUtil.getDecoderStream(new FileInputStream(pubFile)),
+            PGPUtil.getDecoderStream(pubStream),
             new JcaKeyFingerprintCalculator());
         Iterator it = pubKeys.getPublicKeys();
 
@@ -100,9 +108,16 @@ public abstract class OpenPGPFile {
     /**
      * Read in OpenPGP keys from a secret keyring file.
      */
-    public void readOpenPGPSecretFile(File pgpFile, char[] passPhrase) throws FileNotFoundException, IOException, PGPException {
+    public void readOpenPGPSecretKeyRing(File pgpFile, char[] passPhrase) throws FileNotFoundException, IOException, PGPException {
+        readOpenPGPSecretKeyRing(new FileInputStream(pgpFile), passPhrase);
+    }
+
+    /**
+     * Read in OpenPGP keys from a secret keyring file.
+     */
+    public void readOpenPGPSecretKeyRing(InputStream pgpStream, char[] passPhrase) throws FileNotFoundException, IOException, PGPException {
         PGPSecretKeyRing pgpKeys = new PGPSecretKeyRing(
-            PGPUtil.getDecoderStream(new FileInputStream(pgpFile)),
+            PGPUtil.getDecoderStream(pgpStream),
             new JcaKeyFingerprintCalculator());
         Iterator it = pgpKeys.getSecretKeys();
 

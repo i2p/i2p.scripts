@@ -104,7 +104,7 @@ public class OpenPGPDest extends OpenPGPFile {
                     return;
                 }
                 opf = new OpenPGPDest();
-                opf.readOpenPGPPublicFile(new File(args[numOpts+1]));
+                opf.readOpenPGPPublicKeyRing(new File(args[numOpts+1]));
                 opf.importKeys();
                 System.out.println(opf.getDestination().toBase64());
             } else if (args[numOpts].equals("-e") || args[numOpts].equals("--export")) {
@@ -130,7 +130,7 @@ public class OpenPGPDest extends OpenPGPFile {
                 System.out.print("GPG passphrase to decrypt with: ");
                 char[] passPhrase = br.readLine().toCharArray();
                 opf = new OpenPGPDest();
-                opf.readOpenPGPSecretFile(new File(args[numOpts+1]), passPhrase);
+                opf.readOpenPGPSecretKeyRing(new File(args[numOpts+1]), passPhrase);
                 opf.importKeys();
                 opf.writePrivateKeyFile(new File(args[numOpts+2]), forceWrite);
             }
