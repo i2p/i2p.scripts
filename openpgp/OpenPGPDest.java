@@ -120,14 +120,14 @@ public class OpenPGPDest extends OpenPGPFile {
                     System.err.println("Usage: OpenPGPDest "+args[numOpts]+" <eepPriv.dat>");
                     return;
                 }
-                BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-                System.out.print("GPG passphrase to encrypt with: ");
-                char[] passPhrase = br.readLine().toCharArray();
                 opf = new OpenPGPDest();
                 opf.readPrivateKeyFile(new File(args[numOpts+1]));
                 opf.exportKeys();
                 if (identity.length() > 0)
                     opf.addIdentity(identity);
+                BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+                System.err.print("GPG passphrase to encrypt with: ");
+                char[] passPhrase = br.readLine().toCharArray();
                 boolean writeSecret = (args[numOpts].equals("-s") || args[numOpts].equals("--export-secret"));
                 if (outFile.length() > 0)
                     opf.writeOpenPGPKeyRing(new File(outFile), passPhrase, armorOutput, writeSecret, forceWrite);
@@ -138,10 +138,10 @@ public class OpenPGPDest extends OpenPGPFile {
                     System.err.println("Usage: OpenPGPDest "+args[numOpts]+" <pgpFile> <eepPriv.dat>");
                     return;
                 }
-                BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-                System.out.print("GPG passphrase to decrypt with: ");
-                char[] passPhrase = br.readLine().toCharArray();
                 opf = new OpenPGPDest();
+                BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+                System.err.print("GPG passphrase to decrypt with: ");
+                char[] passPhrase = br.readLine().toCharArray();
                 opf.readOpenPGPSecretKeyRing(new File(args[numOpts+1]), passPhrase);
                 opf.importKeys();
                 opf.writePrivateKeyFile(new File(args[numOpts+2]), forceWrite);
