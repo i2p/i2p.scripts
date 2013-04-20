@@ -67,20 +67,25 @@ public class OpenPGPDest extends OpenPGPFile {
             System.err.println("Syntax: OpenPGPDest [options] <command>");
             System.err.println("");
             System.err.println("Commands:");
-            System.err.println(" -b, --b64    [pubFile]");
-            System.err.println(" -e, --export <eepPriv.dat> <pgpFile> [pubFile]");
-            System.err.println(" -i, --import <pgpFile> <eepPriv.dat>");
+            System.err.println(" -b, --b64           [pubFile]");
+            System.err.println(" -e, --export        <eepPriv.dat>");
+            System.err.println(" -i, --import        <pgpFile> <eepPriv.dat>");
+            System.err.println(" -s, --export-secret <eepPriv.dat>");
             System.err.println("");
-            System.err.println("Options:");
-            System.err.println(" -a, --armor");
+            System.err.println("General Options:");
             System.err.println(" -f, --force-write");
+            System.err.println("");
+            System.err.println("OpenPGP-specific Options:");
+            System.err.println(" -a, --armor");
             System.err.println(" -I, --identity    <identity>");
+            System.err.println(" -o, --output      <outFile>");
             return;
         }
         // Parse options
         boolean armorOutput = false;
         boolean forceWrite = false;
         String identity = "";
+        String outFile = "";
         int numOpts = 0;
         while(numOpts < args.length) {
             if (args[numOpts].equals("-a") || args[numOpts].equals("--armor")) {
@@ -89,6 +94,8 @@ public class OpenPGPDest extends OpenPGPFile {
                 forceWrite = true;
             } else if (args[numOpts].equals("-I") || args[numOpts].equals("--identity")) {
                 identity = args[++numOpts];
+            } else if (args[numOpts].equals("-o") || args[numOpts].equals("--output")) {
+                outFile = args[++numOpts];
             } else {
                 // No more options
                 break;
@@ -107,9 +114,10 @@ public class OpenPGPDest extends OpenPGPFile {
                 }
                 opf.importKeys();
                 System.out.println(opf.getDestination().toBase64());
-            } else if (args[numOpts].equals("-e") || args[numOpts].equals("--export")) {
-                if (args.length-numOpts < 3) {
-                    System.err.println("Usage: OpenPGPDest "+args[numOpts]+" <eepPriv.dat> <pgpFile> [pubFile]");
+            } else if (args[numOpts].equals("-e") || args[numOpts].equals("--export") ||
+                       args[numOpts].equals("-s") || args[numOpts].equals("--export-secret")) {
+                if (args.length-numOpts < 2) {
+                    System.err.println("Usage: OpenPGPDest "+args[numOpts]+" <eepPriv.dat>");
                     return;
                 }
                 BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -120,7 +128,11 @@ public class OpenPGPDest extends OpenPGPFile {
                 opf.exportKeys();
                 if (identity.length() > 0)
                     opf.addIdentity(identity);
-                opf.writeOpenPGPFile(new File(args[numOpts+2]), passPhrase, armorOutput, forceWrite, (args.length-numOpts>3 ? new File(args[numOpts+3]) : null));
+                boolean writeSecret = (args[numOpts].equals("-s") || args[numOpts].equals("--export-secret"));
+                if (outFile.length() > 0)
+                    opf.writeOpenPGPKeyRing(new File(outFile), passPhrase, armorOutput, writeSecret, forceWrite);
+                else
+                    opf.writeOpenPGPKeyRing(System.out, passPhrase, armorOutput, writeSecret);
             } else if (args[numOpts].equals("-i") || args[numOpts].equals("--import")) {
                 if (args.length-numOpts < 3) {
                     System.err.println("Usage: OpenPGPDest "+args[numOpts]+" <pgpFile> <eepPriv.dat>");

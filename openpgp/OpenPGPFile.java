@@ -113,7 +113,7 @@ public abstract class OpenPGPFile {
     }
 
     /**
-     * Read in OpenPGP keys from a secret keyring file.
+     * Read in OpenPGP keys from a secret keyring stream.
      */
     public void readOpenPGPSecretKeyRing(InputStream pgpStream, char[] passPhrase) throws FileNotFoundException, IOException, PGPException {
         PGPSecretKeyRing pgpKeys = new PGPSecretKeyRing(
@@ -160,98 +160,96 @@ public abstract class OpenPGPFile {
     /**
      * Write out OpenPGP keys to a file.
      */
-    public void writeOpenPGPFile(File pgpFile, char[] passPhrase, boolean armor, boolean forceWrite) throws IOException, PGPException {
-        writeOpenPGPFile(pgpFile, passPhrase, armor, forceWrite, null);
-    }
-
-    /**
-     * Write out OpenPGP keys to a file.
-     */
-    public void writeOpenPGPFile(File pgpFile, char[] passPhrase, boolean armor, boolean forceWrite, File pubFile) throws IOException, PGPException {
-        OutputStream secretOut = null;
-        OutputStream publicOut = null;
+    public void writeOpenPGPKeyRing(File pgpFile, char[] passPhrase, boolean armor, boolean writeSecret, boolean forceWrite) throws IOException, PGPException {
+        OutputStream pgpOut = null;
         if(!pgpFile.exists() || forceWrite) {
             try {
-                secretOut = new FileOutputStream(pgpFile);
-                if (armor) {
-                    secretOut = new ArmoredOutputStream(secretOut);
-                }
-                PGPDigestCalculator sha1Calc = new JcaPGPDigestCalculatorProviderBuilder().build().get(HashAlgorithmTags.SHA1);
-                PGPContentSignerBuilder certSigBuilder = new JcaPGPContentSignerBuilder(this.pgpTopKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA1);
-                PGPSignatureGenerator sGen;
-                try {
-                    sGen = new PGPSignatureGenerator(certSigBuilder);
-                } catch (Exception e) {
-                    throw new PGPException("creating signature generator: " + e, e);
-                }
-
-                // Add any additional identities to the top public key
-                if (this.identities.size() > 1) {
-                    sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpTopKeyPair.getPrivateKey());
-                    sGen.setHashedSubpackets(null);
-                    sGen.setUnhashedSubpackets(null);
-                    PGPPublicKey pubKey = this.pgpTopKeyPair.getPublicKey();
-                    for (int i = 1; i < this.identities.size(); i++) {
-                        try {
-                            PGPSignature certification = sGen.generateCertification(this.identities.get(i), pubKey);
-                            pubKey = PGPPublicKey.addCertification(pubKey, this.identities.get(i), certification);
-                        } catch (Exception e) {
-                            throw new PGPException("exception doing certification: " + e, e);
-                        }
-                    }
-                    this.pgpTopKeyPair = new PGPKeyPair(pubKey, this.pgpTopKeyPair.getPrivateKey());
-                }
-
-                // Add any I2P DataStructure attributes to the top public key
-                if (this.dataStructures != null) {
-                    PGPUserAttributeSubpacketVector userAttributes = this.dataStructures.generate();
-                    sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpTopKeyPair.getPrivateKey());
-                    sGen.setHashedSubpackets(null);
-                    sGen.setUnhashedSubpackets(null);
-                    PGPPublicKey pubKey = this.pgpTopKeyPair.getPublicKey();
-                    try {
-                        PGPSignature certification = sGen.generateCertification(userAttributes, pubKey);
-                        pubKey = PGPPublicKey.addCertification(pubKey, userAttributes, certification);
-                    } catch (Exception e) {
-                        throw new PGPException("exception doing certification: " + e, e);
-                    }
-                    this.pgpTopKeyPair = new PGPKeyPair(pubKey, this.pgpTopKeyPair.getPrivateKey());
-                }
-
-                // Set up the PGP keyring generator
-                PGPKeyRingGenerator pgpGen = new PGPKeyRingGenerator(
-                    PGPSignature.POSITIVE_CERTIFICATION,
-                    this.pgpTopKeyPair,
-                    this.identities.get(0),
-                    sha1Calc,
-                    null,
-                    null,
-                    certSigBuilder,
-                    new JcePBESecretKeyEncryptorBuilder(SymmetricKeyAlgorithmTags.CAST5, sha1Calc).build(passPhrase));
-                for (int i = 0; i < this.pgpSubKeyPairs.size(); i++) {
-                    pgpGen.addSubKey(this.pgpSubKeyPairs.get(i));
-                }
-                // Write out the secret keyring
-                pgpGen.generateSecretKeyRing().encode(secretOut);
-                secretOut.flush();
-                // If a public file is supplied, write out the public keyring as well
-                if (pubFile != null && (!pubFile.exists() || forceWrite)) {
-                    publicOut = new FileOutputStream(pubFile);
-                    if (armor) {
-                        publicOut = new ArmoredOutputStream(publicOut);
-                    }
-                    pgpGen.generatePublicKeyRing().encode(publicOut);
-                    publicOut.flush();
-                }
+                pgpOut = new FileOutputStream(pgpFile);
+                writeOpenPGPKeyRing(pgpOut, passPhrase, armor, writeSecret);
             } finally {
-                if (secretOut != null) {
-                    try { secretOut.close(); } catch (IOException ioe) {}
-                }
-                if (publicOut != null) {
-                    try { publicOut.close(); } catch (IOException ioe) {}
+                if (pgpOut != null) {
+                    try { pgpOut.close(); } catch (IOException ioe) {}
                 }
             }
         }
+    }
+
+    /**
+     * Write out OpenPGP keys to a stream.
+     */
+    public void writeOpenPGPKeyRing(OutputStream pgpStream, char[] passPhrase, boolean armor, boolean writeSecret) throws IOException, PGPException {
+        OutputStream pgpOut;
+        if (armor)
+            pgpOut = new ArmoredOutputStream(pgpStream);
+        else
+            pgpOut = pgpStream;
+
+        PGPDigestCalculator sha1Calc = new JcaPGPDigestCalculatorProviderBuilder().build().get(HashAlgorithmTags.SHA1);
+        PGPContentSignerBuilder certSigBuilder = new JcaPGPContentSignerBuilder(this.pgpTopKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA1);
+        PGPSignatureGenerator sGen;
+        try {
+            sGen = new PGPSignatureGenerator(certSigBuilder);
+        } catch (Exception e) {
+            throw new PGPException("creating signature generator: " + e, e);
+        }
+
+        // Add any additional identities to the top public key
+        if (this.identities.size() > 1) {
+            sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpTopKeyPair.getPrivateKey());
+            sGen.setHashedSubpackets(null);
+            sGen.setUnhashedSubpackets(null);
+            PGPPublicKey pubKey = this.pgpTopKeyPair.getPublicKey();
+            for (int i = 1; i < this.identities.size(); i++) {
+                try {
+                    PGPSignature certification = sGen.generateCertification(this.identities.get(i), pubKey);
+                    pubKey = PGPPublicKey.addCertification(pubKey, this.identities.get(i), certification);
+                } catch (Exception e) {
+                    throw new PGPException("exception doing certification: " + e, e);
+                }
+            }
+            this.pgpTopKeyPair = new PGPKeyPair(pubKey, this.pgpTopKeyPair.getPrivateKey());
+        }
+
+        // Add any I2P DataStructure attributes to the top public key
+        if (this.dataStructures != null) {
+            PGPUserAttributeSubpacketVector userAttributes = this.dataStructures.generate();
+            sGen.init(PGPSignature.DEFAULT_CERTIFICATION, this.pgpTopKeyPair.getPrivateKey());
+            sGen.setHashedSubpackets(null);
+            sGen.setUnhashedSubpackets(null);
+            PGPPublicKey pubKey = this.pgpTopKeyPair.getPublicKey();
+            try {
+                PGPSignature certification = sGen.generateCertification(userAttributes, pubKey);
+                pubKey = PGPPublicKey.addCertification(pubKey, userAttributes, certification);
+            } catch (Exception e) {
+                throw new PGPException("exception doing certification: " + e, e);
+            }
+            this.pgpTopKeyPair = new PGPKeyPair(pubKey, this.pgpTopKeyPair.getPrivateKey());
+        }
+
+        // Set up the PGP keyring generator
+        PGPKeyRingGenerator pgpGen = new PGPKeyRingGenerator(
+            PGPSignature.POSITIVE_CERTIFICATION,
+            this.pgpTopKeyPair,
+            this.identities.get(0),
+            sha1Calc,
+            null,
+            null,
+            certSigBuilder,
+            new JcePBESecretKeyEncryptorBuilder(SymmetricKeyAlgorithmTags.CAST5, sha1Calc).build(passPhrase));
+        for (int i = 0; i < this.pgpSubKeyPairs.size(); i++) {
+            pgpGen.addSubKey(this.pgpSubKeyPairs.get(i));
+        }
+
+        // Write out the keyring
+        if (writeSecret) {
+            pgpGen.generateSecretKeyRing().encode(pgpOut);
+        } else {
+            pgpGen.generatePublicKeyRing().encode(pgpOut);
+        }
+
+        pgpOut.flush();
+        if (armor)
+            pgpOut.close();
     }
 
     /**
