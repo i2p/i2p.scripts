@@ -117,7 +117,7 @@ git fast-import < ../i2p.git_export
 echo "Pushing branch $BRANCH to github"
 git checkout $BRANCH
 git remote add origin git@github.com:i2p/${BRANCH}.git
-git push origin HEAD:master
+git push origin HEAD:master --force
 
 cd ..
 
