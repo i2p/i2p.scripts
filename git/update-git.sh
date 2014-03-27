@@ -88,6 +88,17 @@ if [ $BRANCH = "i2p.i2p-bote" ]; then
   fi
   echo
 fi
+if [ $BRANCH = "i2p.www" ]; then
+  # echo "Killing bad revs"
+  if [[ $MTN_VERSION == 1* ]]; then
+    # mtn 1.0 syntax
+    $MTN --db ${DB} local kill_rev 14e8b3cb0370ca30b884ec1a750b99199a61da55
+  else
+    # mtn 0.48 syntax
+    $MTN --db ${DB} db kill_rev_locally 14e8b3cb0370ca30b884ec1a750b99199a61da55
+  fi
+  echo
+fi
 
 if [[ $MTN_VERSION == 1* ]]; then
   # mtn 1.0 syntax
