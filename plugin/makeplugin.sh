@@ -96,13 +96,13 @@ fi
 # update the date
 grep -v '^date=' $PC > $PCT
 DATE=`date '+%s000'`
-echo "date=$DATE" >> $PCT
+echo "date=$DATE" >> $PCT || exit 1
 mv $PCT $PC || exit 1
 
 # add our Base64 key
 grep -v '^key=' $PC > $PCT
 B64KEY=`cat $B64KEYFILE`
-echo "key=$B64KEY" >> $PCT
+echo "key=$B64KEY" >> $PCT || exit 1
 mv $PCT $PC || exit 1
 
 # zip it
@@ -126,8 +126,8 @@ rm -f plugin.zip
 echo 'Verifying. ...'
 java -cp $I2P/lib/i2p.jar net.i2p.crypto.TrustedUpdate showversion $XPI2P || exit 1
 java -cp $I2P/lib/i2p.jar -Drouter.trustedUpdateKeys=$B64KEY net.i2p.crypto.TrustedUpdate verifysig $XPI2P || exit 1
-java -cp $I2P/lib/i2p.jar -Di2p.dir.base=$I2P net.i2p.crypto.SU3File showversion $SU3 || exit 1
-java -cp $I2P/lib/i2p.jar -Di2p.dir.base=$I2P net.i2p.crypto.SU3File verifysig $SU3 || exit 1
+java -cp $I2P/lib/i2p.jar net.i2p.crypto.SU3File showversion $SU3 || exit 1
+java -cp $I2P/lib/i2p.jar net.i2p.crypto.SU3File verifysig -k $PUBKEYSTORE $SU3 || exit 1
 rm -rf logs/
 
 echo 'Plugin files created: '
