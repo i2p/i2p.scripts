@@ -16,6 +16,7 @@
 MTN=mtn
 SERVER="127.0.0.1:8998"
 PUSH_TO_GITHUB=0
+BARE_REPO=1
 
 cd $(dirname "$0")
 TMP=$(mktemp XXXXXX)
@@ -132,7 +133,11 @@ echo
 if [ ! -d $BRANCH.git ]; then
   mkdir $BRANCH.git
   cd $BRANCH.git
-  git init
+  if [ $BARE_REPO -eq 1 ]; then
+    git init --bare
+  else
+    git init
+  fi
   git remote add origin git@github.com:i2p/${BRANCH}.git
 else
   cd $BRANCH.git
@@ -142,15 +147,16 @@ fi
 # so we make sure that there's *something* here.
 test -f ../.${BRANCH}.git.import || touch ../.${BRANCH}.git.import
 echo "Importing into git" >&2
-git checkout -f $BRANCH
 if git fast-import --import-marks=../.${BRANCH}.git.import --export-marks=../.${BRANCH}.git.export < ../$TMP ; then
   mv ../.${BRANCH}.git.export ../.${BRANCH}.git.import
 fi
 
+if [ $BARE_REPO -eq 0 ]; then
+  git checkout $BRANCH
+fi
 if [ $PUSH_TO_GITHUB -eq 1 ]; then
   echo "Pushing branch $BRANCH to github" >&2
-  git checkout $BRANCH
-  git push -f --tags origin HEAD:master
+  git push -f --tags origin ${BRANCH}:master
 fi
 
 cd ..
