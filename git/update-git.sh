@@ -94,6 +94,10 @@ if [ $BRANCH = "i2p.i2p-bote" ]; then
     kill_rev 245793c1e59b5ab5dc088ec5cc89f61c3068a729
     kill_rev 84140d0de55bae627fc0aed7feb55d72b929a43c
     kill_rev c20050d9e5180c5a568c3f5ab12a356e253d1ed0
+    kill_rev f4677dff0b53f0b8f19dae982da5dac9fd08db8e
+    kill_rev 4824470161121832aa6d1771fa2c2aca05b4ffe5
+    kill_rev 0b397d300edb63b2b4bd04598ff34ec9ce788daf
+    kill_rev d45cd59de58733e77b7d31d9e5558337c33174d2
     # FIXME Is there a < 1.0 compatible way of doing this?
     $MTN --db ${DB} local kill_certs ec0ec8bca6aa7c8d6b314688662891ed0c80aa34 date
     $MTN --db ${DB} cert ec0ec8bca6aa7c8d6b314688662891ed0c80aa34 date 2012-01-01T00:00:00
