@@ -5,7 +5,7 @@
 #
 
 # input Atom format
-IN=atom.xml
+IN=news.atom.xml
 # output su3 format
 OUT=news.su3
 # Install dir
@@ -30,6 +30,12 @@ gzip -c -n $IN > $TMP
 NOW=`date +%s`
 java -cp $I2P/lib/i2p.jar net.i2p.crypto.SU3File \
    sign -c NEWS -f XML_GZ -t RSA_SHA512_4096 $TMP $OUT $KS $NOW $SIGNER
+
+if [ $? -ne 0 ]
+then
+	echo "Failed to create $OUT"
+	exit 1
+fi
 
 java -cp $I2P/lib/i2p.jar net.i2p.crypto.SU3File \
    showversion $OUT
