@@ -16,7 +16,7 @@ MOREEXCLUDE="installer/resources/geoip.txt"
 
 echo "Diffing from $REL"
 POS=`find -name \*.po`
-for i in $MOREEXCLUDE $POS
+for i in $MOREEXCLUDE $POS core/java/src/gnu/getopt/*.properties
 do
 	EXCLUDE="$EXCLUDE --exclude $i"
 done
