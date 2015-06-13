@@ -15,7 +15,9 @@
 # Configure as necessary
 MTN=mtn
 SERVER="127.0.0.1:8998"
+INCLUDE_BRANCHES=0
 PUSH_TO_GITHUB=0
+PUSH_BRANCHES_TO_GITHUB=0
 BARE_REPO=1
 
 cd $(dirname "$0")
@@ -29,6 +31,7 @@ else
 fi
 
 DB=${BRANCH}.mtn
+BRANCHES=${BRANCH}.branches
 
 if [ ! -f $DB ]; then
   $MTN --db ${DB} db init
@@ -55,7 +58,11 @@ kill_rev() {
 
 mtn_pull() {
   if [ $MTN_VERSION -eq 1 ]; then
-    $MTN --db ${DB} pull mtn://"$SERVER"?"$BRANCH" --key=""
+    if [ $INCLUDE_BRANCHES -eq 1 ]; then
+      $MTN --db ${DB} pull mtn://"$SERVER"?"$BRANCH{,.*}" --key=""
+    else
+      $MTN --db ${DB} pull mtn://"$SERVER"?"$BRANCH" --key=""
+    fi
   else
     $MTN --db ${DB} pull "$SERVER" "$BRANCH" --key=""
   fi
@@ -118,11 +125,19 @@ if [ $HEADS -gt 1 ]; then
   exit
 fi
 
+if [ $INCLUDE_BRANCHES -eq 1 ]; then
+  $MTN --db ${DB} list branches >$BRANCHES
+  sed -i "s/^${BRANCH}$/${BRANCH} = master/g" $BRANCHES
+  sed -i "s/^${BRANCH}\\.\\(.*\\)$/${BRANCH}.\\1 = \\1/g" $BRANCHES
+else
+  echo "" >$BRANCHES
+fi
+
 # Older versions will abort without already existing marks files,
 # so we make sure that there's *something* here.
 test -f .${BRANCH}.mtn.import || touch .${BRANCH}.mtn.import
 echo "Exporting to git format"
-if $MTN --db ${DB} git_export --import-marks=.${BRANCH}.mtn.import --export-marks=.${BRANCH}.mtn.export > $TMP; then
+if $MTN --db ${DB} git_export --branches-file=${BRANCHES} --import-marks=.${BRANCH}.mtn.import --export-marks=.${BRANCH}.mtn.export > $TMP; then
   IMP=$(sum .${BRANCH}.mtn.import)
   EXP=$(sum .${BRANCH}.mtn.export)
   mv .${BRANCH}.mtn.export .${BRANCH}.mtn.import
@@ -160,7 +175,16 @@ if [ $BARE_REPO -eq 0 ]; then
 fi
 if [ $PUSH_TO_GITHUB -eq 1 ]; then
   echo "Pushing branch $BRANCH to github" >&2
-  git push -f --tags origin ${BRANCH}:master
+  if [ $INCLUDE_BRANCHES -eq 1 ]; then
+    if [ $PUSH_TO_GITHUB -eq 1 ]; then
+      git branch -D unknown
+      git push -f --all --tags origin
+    else
+      git push -f --tags origin master:master
+    fi
+  else
+    git push -f --tags origin ${BRANCH}:master
+  fi
 fi
 
 cd ..
