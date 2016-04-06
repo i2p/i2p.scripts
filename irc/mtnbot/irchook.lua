@@ -40,7 +40,7 @@ function note_netsync_end(session_id, status, bytes_in, bytes_out, certs_in, cer
 end
 
 
-function note_commit(new_id, revision, certs)
+function note_netsync_revison_recveived(new_id, revision, certs, session_id)
   ircsay(string.format("new commit %s:", new_id))
   ircsay(revision)
 end
