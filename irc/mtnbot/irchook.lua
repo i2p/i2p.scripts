@@ -45,7 +45,9 @@ end
 
 function note_netsync_revision_received(new_id, revision, certs, session_id)
    local commiter = certs[1].key.given_name
-   local branch = ""
    -- announce in channel
-   ircsay(channel, string.format("commit by %s on %s ( %s )", commiter, branch,  new_id))
+   ircsay(channel, string.format("commit by %s: ( %s )", commiter, new_id))
+   for k, c in pairs(certs) do
+      ircsay(channel, string.format("%s : %s", c.name, c.value))
+   end
 end
