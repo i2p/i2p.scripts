@@ -39,7 +39,7 @@ function note_netsync_start(session_id, my_role, sync_type, remote_host, remote_
 end
 
 function note_netsync_end(session_id, status, bytes_in, bytes_out, certs_in, certs_out, revs_in, revs_out, keys_in, keys_out)
-  irc("/part "..channel)
+
 end
 
 
