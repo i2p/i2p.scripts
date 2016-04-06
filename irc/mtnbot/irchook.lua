@@ -17,7 +17,7 @@ function ircsay(msg)
   end
 end
 
-function irc(chnl, line)
+function irc(line)
    local f = io.open("~/irc/localhost/in", "w")
    if ( f == nil  ) then
       print("cannot talk to irc, no file")
