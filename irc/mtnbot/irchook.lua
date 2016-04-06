@@ -33,7 +33,9 @@ end
 channel = "#i2p-dev"
 
 function note_netsync_start(session_id, my_role, sync_type, remote_host, remote_key, includes, excludes)
-   irc("/j "..channel)
+   irc("/join "..channel)
+   -- wait for join
+   sleep(1)
 end
 
 function note_netsync_end(session_id, status, bytes_in, bytes_out, certs_in, certs_out, revs_in, revs_out, keys_in, keys_out)
@@ -43,7 +45,7 @@ end
 
 function note_netsync_revision_received(new_id, revision, certs, session_id)
    for key, value in pairs(certs) do
-      local commiter = value.key
+      local commiter = value.key.given_name
       ircsay(channel, string.format("commit by %s: %s", commiter ,  new_id))
    end
 end
