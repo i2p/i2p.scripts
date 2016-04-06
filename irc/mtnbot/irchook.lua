@@ -5,8 +5,9 @@
 --   ii -s localhost -p 6668 -n nicknameofbot 
 --   echo '/j #i2p-dev' > ~/irc/in
 
-function ircsay(msg)
-  local f = io.open(os.getenv("HOME").."/irc/localhost/#i2p-dev/in", "w")
+
+function ircsay(chnl, msg)
+  local f = io.open(os.getenv("HOME").."/irc/localhost/"..chnl.."/in", "w")
   if (f == nil) then
     print ("cannot open irc pipe")
   else
@@ -29,15 +30,20 @@ function irc(line)
    end
 end
 
+channel = "#i2p-dev"
+
 function note_netsync_start(session_id, my_role, sync_type, remote_host, remote_key, includes, excludes)
-   irc("/j #i2p-dev")
+   irc("/j "..channel)
 end
 
 function note_netsync_end(session_id, status, bytes_in, bytes_out, certs_in, certs_out, revs_in, revs_out, keys_in, keys_out)
-  irc("/part #i2p-dev")
+  irc("/part "..channel)
 end
 
 
 function note_netsync_revision_received(new_id, revision, certs, session_id)
-   ircsay(string.format("commit by %s: %s", certs[new_id].key,  new_id))
+   for key, value in pairs(certs) do
+      local commiter = value.key
+      ircsay(channel, string.format("commit by %s: %s", commiter ,  new_id))
+   end
 end
