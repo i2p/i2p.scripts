@@ -6,7 +6,7 @@
 --   echo '/j #i2p-dev' > ~/irc/in
 
 function ircsay(msg)
-  local f = io.open("~/irc/localhost/#i2p-dev/in", "w")
+  local f = io.open(os.getenv("HOME").."/irc/localhost/#i2p-dev/in", "w")
   if (f == nil) then
     print ("cannot open irc pipe")
   else
@@ -18,7 +18,7 @@ function ircsay(msg)
 end
 
 function irc(line)
-   local f = io.open("~/irc/localhost/in", "w")
+   local f = io.open(os.getenv("HOME").."/irc/localhost/in", "w")
    if ( f == nil  ) then
       print("cannot talk to irc, no file")
    else
@@ -34,13 +34,10 @@ function note_netsync_start(session_id, my_role, sync_type, remote_host, remote_
 end
 
 function note_netsync_end(session_id, status, bytes_in, bytes_out, certs_in, certs_out, revs_in, revs_out, keys_in, keys_out)
-  if (revs_in > 0) then
-    ircsay(string.format("monotone net sync done, %d revisions in, %d keys in, %d certs in", revs_in, keys_in, certs_in))
-  end
+  irc("/part #i2p-dev")
 end
 
 
 function note_netsync_revision_received(new_id, revision, certs, session_id)
-  ircsay(string.format("new commit %s:", new_id))
-  ircsay(revision)
+   ircsay(string.format("commit by %s: %s", certs[new_id].key,  new_id))
 end
