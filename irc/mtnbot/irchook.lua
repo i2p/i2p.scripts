@@ -44,8 +44,6 @@ end
 
 
 function note_netsync_revision_received(new_id, revision, certs, session_id)
-   for key, value in pairs(certs) do
-      local commiter = value.key.given_name
-      ircsay(channel, string.format("commit by %s: %s", commiter ,  new_id))
-   end
+   local commiter = certs[0].key.given_name
+   ircsay(channel, string.format("commit by %s: %s", commiter,  new_id))
 end
