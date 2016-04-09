@@ -14,13 +14,13 @@
 
 # Configure as necessary
 MTN=mtn
-SERVER="127.0.0.1:8998"
+#SERVER="mtn.i2p-projekt.de:4691"
+SERVER="localhost:8998"
 INCLUDE_BRANCHES=0
-PUSH_TO_GITHUB=0
-PUSH_BRANCHES_TO_GITHUB=0
+PUSH_TO_GITHUB=1
 BARE_REPO=1
 
-cd $(dirname "$0")
+#cd $(dirname "$0")
 TMP=$(mktemp XXXXXX)
 trap 'rm -f $TMP;exit' 0 1 2 15
 
@@ -28,6 +28,13 @@ if [ $# -lt 1 ]; then
   BRANCH=i2p.i2p
 else
   BRANCH=$1
+fi
+
+if [ $# -lt 2 ]; then
+  #with trailing slash. .git is added by the script
+  PUSH_LOCATION="git@github.com:i2p/"
+else
+  PUSH_LOCATION=$2
 fi
 
 DB=${BRANCH}.mtn
@@ -157,7 +164,7 @@ if [ ! -d $BRANCH.git ]; then
   else
     git init
   fi
-  git remote add origin git@github.com:i2p/${BRANCH}.git
+  git remote add origin ${PUSH_LOCATION}${BRANCH}.git
 else
   cd $BRANCH.git
 fi
@@ -170,11 +177,26 @@ if git fast-import --import-marks=../.${BRANCH}.git.import --export-marks=../.${
   mv ../.${BRANCH}.git.export ../.${BRANCH}.git.import
 fi
 
+# There is a commit with a messed up timestamp in the mtn branch.
+# Git will set the date to "today" during import. So we have to do
+# manual fixing after the import. We need to filter for the GIT_AUTHOR,
+# as the SHA1 depends on the date, which changes every time we run this
+# script. We set the date according to the old git exports done by kytv.
+# SHA1 refs should match after this.
+if [ $BRANCH = "i2p.i2p-bote" ]; then
+  echo "Fixing up bad date" >&2
+  git filter-branch --env-filter '
+        if [ "$GIT_AUTHOR_NAME" = "7c54f9fbcb80e56dd9c1e144e255982ef6396df2" ]; then
+                export GIT_AUTHOR_DATE="1325376000 +0000"
+                export GIT_COMMITTER_DATE="1325376000 +0000"
+        fi' -- --all
+fi
+
 if [ $BARE_REPO -eq 0 ]; then
   git checkout $BRANCH
 fi
 if [ $PUSH_TO_GITHUB -eq 1 ]; then
-  echo "Pushing branch $BRANCH to github" >&2
+  echo "Pushing branch $BRANCH to remote" >&2
   if [ $INCLUDE_BRANCHES -eq 1 ]; then
     if [ $PUSH_TO_GITHUB -eq 1 ]; then
       git branch -D unknown
