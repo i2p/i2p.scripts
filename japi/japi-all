@@ -1,0 +1,72 @@
+#
+#  Generate API difference reports in pairs of releases.
+#
+#  using:
+#  http://ispras.linuxbase.org/index.php/Java_API_Compliance_Checker
+#
+#  Each release must be built in i2p09xx-src/
+#
+#  zzz public domain 2016-04
+#
+JAPI=japi-compliance-checker
+RP=0.9.
+RELS="10 11 12 13 14 15 16 17 18 19 20 21 22 23 24"
+DPFX=i2p09
+DSFX=-src/build/
+OPTS='-keep-internal -show-access -external-css compat_reports/.compat-reports.css -external-js compat_reports/.compat-reports.js'
+
+JARS="
+BOB
+commons-el
+commons-logging
+desktopgui
+i2p
+i2psnark
+i2ptunnel
+jasper-compiler
+jasper-runtime
+javax.servlet
+jetty-continuation
+jetty-deploy
+jetty-http
+jetty-i2p
+jetty-io
+jetty-java5-threadpool
+jetty-rewrite-handler
+jetty-security
+jetty-servlet
+jetty-servlets
+jetty-sslengine
+jetty-start
+jetty-util
+jetty-webapp
+jetty-xml
+jrobin
+mstreaming
+org.mortbay.jetty
+org.mortbay.jmx
+routerconsole
+router
+sam
+streaming
+systray
+"
+
+for i in $RELS
+do
+	let j=i+1
+	for jar in $JARS
+	do
+		F1=${DPFX}${i}${DSFX}${jar}.jar
+		F2=${DPFX}${j}${DSFX}${jar}.jar
+                diff -N -q $F1 $F2 > /dev/null
+                if [ "$?" -eq "0" ]
+		then
+			echo "No change to $jar in 0.9.$j"
+		else
+			V1=0.9.${i}
+			V2=0.9.${j}
+			$JAPI $OPTS -l $jar -v1 $V1 -v2 $V2 -report-path compat_reports/${jar}/${V1}_to_${V2}.html $F1 $F2
+		fi
+	done
+done

@@ -1,0 +1,75 @@
+#
+#  Generate API difference reports from last release to a dev build.
+#
+#  using:
+#  http://ispras.linuxbase.org/index.php/Java_API_Compliance_Checker
+#
+#  Last release must be built in i2p09xx-src/
+#  Dev build must be built in i2p-clean/
+#
+#  zzz public domain 2016-04
+#
+JAPI=japi-compliance-checker
+RP=0.9.
+DIR=i2p-clean
+REL=`java -jar $DIR/build/i2p.jar coreversion | head -1 | cut -d '.' -f 3`
+DEV=`java -jar $DIR/build/router.jar routerversion | head -1 | cut -d '-' -f 2`
+DPFX=i2p09
+DSFX=-src/build/
+OPTS='-keep-internal -show-access -external-css compat_reports/.compat-reports.css -external-js compat_reports/.compat-reports.js'
+
+JARS="
+BOB
+commons-el
+commons-logging
+desktopgui
+i2p
+i2psnark
+i2ptunnel
+jasper-compiler
+jasper-runtime
+javax.servlet
+jetty-continuation
+jetty-deploy
+jetty-http
+jetty-i2p
+jetty-io
+jetty-java5-threadpool
+jetty-rewrite-handler
+jetty-security
+jetty-servlet
+jetty-servlets
+jetty-sslengine
+jetty-start
+jetty-util
+jetty-webapp
+jetty-xml
+jrobin
+mstreaming
+org.mortbay.jetty
+org.mortbay.jmx
+routerconsole
+router
+sam
+streaming
+systray
+"
+
+echo "Diffing from 0.9.$REL to 0.9.${REL}-${DEV}"
+
+
+for jar in $JARS
+do
+	F1=${DPFX}${REL}${DSFX}${jar}.jar
+	F2=${DIR}/build/${jar}.jar
+	V1=0.9.${REL}
+	V2=0.9.${REL}-${DEV}
+	diff -N -q $F1 $F2 > /dev/null
+	if [ "$?" -eq "0" ]
+	then
+		echo "No change to $jar since 0.9.$REL"
+	else
+		$JAPI $OPTS -l $jar -v1 $V1 -v2 $V2 -report-path compat_reports/${jar}/${V1}_to_${V2}.html $F1 $F2
+
+	fi
+done
