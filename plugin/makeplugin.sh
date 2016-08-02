@@ -36,7 +36,7 @@ fi
 SIGNER=`grep '^signer=' $PLUGINDIR/$PC`
 if [ "$?" -ne "0" ]
 then
-	echo "You must have a plugin name in $PC"
+	echo "You must have a signer name in $PC"
 	echo 'For example name=foo'
 	exit 1
 fi
