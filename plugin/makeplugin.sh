@@ -7,6 +7,7 @@
 #  zzz 2010-02
 #  zzz 2014-08 added support for su3 files
 #
+CPATH=$I2P/lib/i2p.jar:/usr/share/java/gnu-getopt.jar
 PUBKEYDIR=$HOME/.i2p-plugin-keys
 PUBKEYFILE=$PUBKEYDIR/plugin-public-signing.key
 PRIVKEYFILE=$PUBKEYDIR/plugin-private-signing.key
@@ -46,8 +47,8 @@ if [ ! -f $PRIVKEYFILE ]
 then
 	echo "Creating new XPI2P DSA keys"
 	mkdir -p $PUBKEYDIR || exit 1
-	java -cp $I2P/lib/i2p.jar net.i2p.crypto.TrustedUpdate keygen $PUBKEYFILE $PRIVKEYFILE || exit 1
-	java -cp $I2P/lib/i2p.jar net.i2p.data.Base64 encode $PUBKEYFILE $B64KEYFILE || exit 1
+	java -cp $CPATH net.i2p.crypto.TrustedUpdate keygen $PUBKEYFILE $PRIVKEYFILE || exit 1
+	java -cp $CPATH net.i2p.data.Base64 encode $PUBKEYFILE $B64KEYFILE || exit 1
 	rm -rf logs/
 	chmod 444 $PUBKEYFILE $B64KEYFILE
 	chmod 400 $PRIVKEYFILE
@@ -57,7 +58,7 @@ fi
 if [ ! -f $PRIVKEYSTORE ]
 then
 	echo "Creating new SU3 $KEYTYPE keys for $SIGNER"
-	java -cp $I2P/lib/i2p.jar net.i2p.crypto.SU3File keygen -t $KEYTYPE $PUBKEYSTORE $PRIVKEYSTORE $SIGNER || exit 1
+	java -cp $CPATH net.i2p.crypto.SU3File keygen -t $KEYTYPE $PUBKEYSTORE $PRIVKEYSTORE $SIGNER || exit 1
 	echo '*** Save your password in a safe place!!! ***'
 	rm -rf logs/
 	# copy to the router dir so verify will work
@@ -118,16 +119,16 @@ cd $OPWD
 
 # sign it
 echo 'Signing. ...'
-java -cp $I2P/lib/i2p.jar net.i2p.crypto.TrustedUpdate sign plugin.zip $XPI2P $PRIVKEYFILE $VERSION || exit 1
-java -cp $I2P/lib/i2p.jar net.i2p.crypto.SU3File sign -c PLUGIN -t $KEYTYPE plugin.zip $SU3 $PRIVKEYSTORE $VERSION $SIGNER || exit 1
+java -cp $CPATH net.i2p.crypto.TrustedUpdate sign plugin.zip $XPI2P $PRIVKEYFILE $VERSION || exit 1
+java -cp $CPATH net.i2p.crypto.SU3File sign -c PLUGIN -t $KEYTYPE plugin.zip $SU3 $PRIVKEYSTORE $VERSION $SIGNER || exit 1
 rm -f plugin.zip
 
 # verify
 echo 'Verifying. ...'
-java -cp $I2P/lib/i2p.jar net.i2p.crypto.TrustedUpdate showversion $XPI2P || exit 1
-java -cp $I2P/lib/i2p.jar -Drouter.trustedUpdateKeys=$B64KEY net.i2p.crypto.TrustedUpdate verifysig $XPI2P || exit 1
-java -cp $I2P/lib/i2p.jar net.i2p.crypto.SU3File showversion $SU3 || exit 1
-java -cp $I2P/lib/i2p.jar net.i2p.crypto.SU3File verifysig -k $PUBKEYSTORE $SU3 || exit 1
+java -cp $CPATH net.i2p.crypto.TrustedUpdate showversion $XPI2P || exit 1
+java -cp $CPATH -Drouter.trustedUpdateKeys=$B64KEY net.i2p.crypto.TrustedUpdate verifysig $XPI2P || exit 1
+java -cp $CPATH net.i2p.crypto.SU3File showversion $SU3 || exit 1
+java -cp $CPATH net.i2p.crypto.SU3File verifysig -k $PUBKEYSTORE $SU3 || exit 1
 rm -rf logs/
 
 echo 'Plugin files created: '
