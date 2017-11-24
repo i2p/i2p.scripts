@@ -144,6 +144,6 @@ rm -rf logs/
 
 echo 'Plugin files created: '
 wc -c "$XPI2P"
-wc -c " $SU3"
+wc -c "$SU3"
 
 exit 0
