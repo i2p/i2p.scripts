@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+#
+# If it fails "No module named yaml"
+# then sudo apt install python-yaml
+#
+
 import argparse
 import json
 import urllib2
@@ -11,7 +16,7 @@ import yaml
 from urllib2 import HTTPError, URLError
 from string import whitespace
 
-# Info about requestable data can be found at http://i2p2.de/i2pcontrol.html & http://www.i2p2.de/ratestats.html
+# Info about requestable data can be found at https://geti2p.net/i2pcontrol.html & https://geti2p.net/ratestats.html
 
 address = "127.0.0.1" 	# Default I2PControl Address
 port = 7650 		# Default I2PControl Port
@@ -73,7 +78,6 @@ def sendMsg(jsonStr):
 	
 ###
 # Overrides the version in httplib so that we can ignore server certificate authenticity
-# and use SSLv3
 ###
 class UnauthenticatedHTTPSConnection(httplib.HTTPSConnection):
     def connect(self):
@@ -83,8 +87,7 @@ class UnauthenticatedHTTPSConnection(httplib.HTTPSConnection):
             self.sock = sock
             self._tunnel()
         self.sock = ssl.wrap_socket(sock,
-                                    cert_reqs=ssl.CERT_NONE,
-									ssl_version=ssl.PROTOCOL_SSLv3)
+                                    cert_reqs=ssl.CERT_NONE)
 
 ###
 # HTTPS handler which uses SSLv3 and ignores server cert authenticity
@@ -131,7 +134,7 @@ def main():
 		metavar="router-info-id",
 		dest="router_info", 
 		action="store", 
-		help="Request info such as I2P version and uptime. Returned info can be of any type. Full list of options at http://www.i2p2.de/i2pcontrol.html. Usage: \"-i i2p.router.version\"")
+		help="Request info such as I2P version and uptime. Returned info can be of any type. Full list of options at https://geti2p.net/i2pcontrol.html. Usage: \"-i i2p.router.version\"")
 
 	parser.add_argument("-s",
 		"--rate-stat",
@@ -139,7 +142,7 @@ def main():
 		metavar=("rateStatName", "period"),
 		dest="rate_stat",		
 		action="store",
-		help="Request info such as bandwidth, number active peers, clock skew, etc.. The period is measured in ms and must be longer than 60s. Full list at http://www.i2p2.de/ratestats.html. Usage: \"-s bw.receiveBps 3600000\"")
+		help="Request info such as bandwidth, number active peers, clock skew, etc.. The period is measured in ms and must be longer than 60s. Full list at https://geti2p.net/ratestats.html. Usage: \"-s bw.receiveBps 3600000\"")
 
 	parser.add_argument("-z",
 		"--zabbix",
