@@ -65,7 +65,7 @@ def sendMsg(jsonStr):
 		global msgId
 		https_handler = UnauthenticatedHTTPSHandler()
 		url_opener = urllib2.build_opener(https_handler)
-		handle = url_opener.open("https://"+address+":"+ str(port) + "/jsonrpc", jsonStr)
+		handle = url_opener.open("https://"+address+":"+ str(port) + "/jsonrpc/", jsonStr)
 		response = handle.read()
 		handle.close()
 		msgId = msgId + 1;
