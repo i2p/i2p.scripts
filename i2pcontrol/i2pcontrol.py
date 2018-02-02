@@ -60,6 +60,71 @@ def getRouterInfo(infoName):
 	msgStr = "{\"id\":" + str(msgId) + ", \"method\":\"RouterInfo\",\"params\":{\""+infoName+"\":\"\", \"Token\":\"" + token +"\" }, \"jsonrpc\":\"2.0\"}"
 	jsonResp = sendMsg(msgStr)
 	return jsonResp.get("result").get(infoName)
+	
+def getControlInfo(infoName):
+	checkToken()
+	## The parameter names in 'params' defines which answers are requested
+	if ("=" in infoName):
+		toks = infoName.split("=", 2);
+		infoName = toks[0];
+		infoValue = toks[1];
+		msgStr = "{\"id\":" + str(msgId) + ", \"method\":\"I2PControl\",\"params\":{\""+infoName+"\":\""+infoValue+"\", \"Token\":\"" + token +"\" }, \"jsonrpc\":\"2.0\"}"
+	else:
+		return "Parameter value required for " + infoName
+	jsonResp = sendMsg(msgStr)
+	return "I2PControl setting " + infoName + " set to " + infoValue
+	
+def getRouterManagerInfo(infoName):
+	checkToken()
+	## The parameter names in 'params' defines which answers are requested
+	msgStr = "{\"id\":" + str(msgId) + ", \"method\":\"RouterManager\",\"params\":{\""+infoName+"\":\"\", \"Token\":\"" + token +"\" }, \"jsonrpc\":\"2.0\"}"
+	jsonResp = sendMsg(msgStr)
+	if (infoName == "FindUpdates" or infoName == "Update"):
+		return jsonResp.get("result").get(infoName)
+	else:
+		return "Sent Router Manager command: " + infoName
+	
+def getNetworkInfo(infoName):
+	checkToken()
+	isset = 0;
+	## The parameter names in 'params' defines which answers are requested
+	if ("=" in infoName):
+		toks = infoName.split("=", 2);
+		isset = 1;
+		infoName = toks[0];
+		infoValue = toks[1];
+		msgStr = "{\"id\":" + str(msgId) + ", \"method\":\"NetworkSetting\",\"params\":{\""+infoName+"\":\""+infoValue+"\", \"Token\":\"" + token +"\" }, \"jsonrpc\":\"2.0\"}"
+	else:
+		msgStr = "{\"id\":" + str(msgId) + ", \"method\":\"NetworkSetting\",\"params\":{\""+infoName+"\":null, \"Token\":\"" + token +"\" }, \"jsonrpc\":\"2.0\"}"
+	jsonResp = sendMsg(msgStr)
+	if (isset == 1):
+		return "Network setting " + infoName + " set to " + infoValue
+	else:
+		return jsonResp.get("result").get(infoName)
+
+def getAdvancedInfo(infoName):
+	checkToken()
+	isset = 0;
+	## The parameter names in 'params' defines which answers are requested
+	if (infoName == "GetAll"):
+		msgStr = "{\"id\":" + str(msgId) + ", \"method\":\"AdvancedSettings\",\"params\":{\""+infoName+"\":\"\", \"Token\":\"" + token +"\" }, \"jsonrpc\":\"2.0\"}"
+	elif (infoName == "SetAll"):
+		return "SetAll unsupported"
+	elif ("=" in infoName):
+		toks = infoName.split("=", 2);
+		isset = 1;
+		infoName = toks[0];
+		infoValue = toks[1];
+		msgStr = "{\"id\":" + str(msgId) + ", \"method\":\"AdvancedSettings\",\"params\":{\"set\":{\""+infoName+"\":\""+infoValue+"\"}, \"Token\":\"" + token +"\" }, \"jsonrpc\":\"2.0\"}"
+	else:
+		msgStr = "{\"id\":" + str(msgId) + ", \"method\":\"AdvancedSettings\",\"params\":{\"get\":\""+infoName+"\", \"Token\":\"" + token +"\" }, \"jsonrpc\":\"2.0\"}"
+	jsonResp = sendMsg(msgStr)
+	if (infoName == "GetAll"):
+		return jsonResp.get("result").get(infoName)
+	elif (isset == 1):
+		return "Advanced configuration " + infoName + " set to " + infoValue
+	else:
+		return jsonResp.get("result").get("get").get(infoName)
 
 def sendMsg(jsonStr):
 		global msgId
@@ -136,6 +201,38 @@ def main():
 		action="store", 
 		help="Request info such as I2P version and uptime. Returned info can be of any type. Full list of options at https://geti2p.net/i2pcontrol.html. Usage: \"-i i2p.router.version\"")
 
+	parser.add_argument("-c",
+		"--i2pcontrol-info", 
+		nargs=1,
+		metavar="i2pcontrol-info-id",
+		dest="i2pcontrol_info", 
+		action="store", 
+		help="Change settings such as password. Usage: \"-c i2pcontrol.password=foo\"")
+
+	parser.add_argument("-r",
+		"--routermanager-info", 
+		nargs=1,
+		metavar="routermanager-info-id",
+		dest="routermanager_info", 
+		action="store", 
+		help="Send a command to the router. Usage: \"-r FindUpdates|Reseed|Restart|RestartGraceful|Shutdown|ShutdownGraceful|Update\"")
+
+	parser.add_argument("-n",
+		"--network-info", 
+		nargs=1,
+		metavar="network-info-id",
+		dest="network_info", 
+		action="store", 
+		help="Request info such as bandwidth. Usage: \"-n i2p.router.net.bw.in[=xxx]\"")
+
+	parser.add_argument("-a",
+		"--advanced-info", 
+		nargs=1,
+		metavar="advanced-info-id",
+		dest="advanced_info", 
+		action="store", 
+		help="Request configuration info. Usage: \"-a GetAll|foo[=bar]\"")
+
 	parser.add_argument("-s",
 		"--rate-stat",
 		nargs=2,
@@ -197,6 +294,22 @@ def main():
 
 	if (options.router_info != None):
 		print getRouterInfo(options.router_info[0])
+		sys.exit()
+
+	if (options.i2pcontrol_info != None):
+		print getControlInfo(options.i2pcontrol_info[0])
+		sys.exit()
+
+	if (options.routermanager_info != None):
+		print getRouterManagerInfo(options.routermanager_info[0])
+		sys.exit()
+
+	if (options.network_info != None):
+		print getNetworkInfo(options.network_info[0])
+		sys.exit()
+
+	if (options.advanced_info != None):
+		print getAdvancedInfo(options.advanced_info[0])
 		sys.exit()
 	
 	if (options.zabbix != None):
