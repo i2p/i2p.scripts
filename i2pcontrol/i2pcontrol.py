@@ -20,6 +20,7 @@ from string import whitespace
 
 address = "127.0.0.1" 	# Default I2PControl Address
 port = 7650 		# Default I2PControl Port
+usessl = 1		# Change to 0 for HTTP
 apiPassword = "itoopie" # Default I2PControl password
 
 
@@ -130,7 +131,10 @@ def sendMsg(jsonStr):
 		global msgId
 		https_handler = UnauthenticatedHTTPSHandler()
 		url_opener = urllib2.build_opener(https_handler)
-		handle = url_opener.open("https://"+address+":"+ str(port) + "/jsonrpc/", jsonStr)
+		if (usessl != 0):
+			handle = url_opener.open("https://"+address+":"+ str(port) + "/jsonrpc/", jsonStr)
+		else:
+			handle = url_opener.open("http://"+address+":"+ str(port) + "/jsonrpc/", jsonStr)
 		response = handle.read()
 		handle.close()
 		msgId = msgId + 1;
@@ -192,11 +196,36 @@ def from_file(infile, parameter):
 	except IOError, e:	
 		print "File \""+ infile +"\" couldn't be read."	
 def main():
+	global address
+	global port
+	global usessl
 	parser = argparse.ArgumentParser(description='Fetch I2P info via the I2PControl API.')
+	parser.add_argument("-l",
+		"--host", 
+		nargs=1,
+		metavar="host",
+		dest="address", 
+		action="store", 
+		help="Listen host address of the i2pcontrol server")
+
+	parser.add_argument("-p",
+		"--port", 
+		nargs=1,
+		metavar="port",
+		dest="port", 
+		action="store", 
+		help="Port of the i2pcontrol server")
+
+	parser.add_argument("-x",
+		"--no-ssl", 
+		dest="http", 
+		action="store_true", 
+		help="Use HTTP instead of HTTPS")
+
 	parser.add_argument("-i",
 		"--router-info", 
 		nargs=1,
-		metavar="router-info-id",
+		metavar="info",
 		dest="router_info", 
 		action="store", 
 		help="Request info such as I2P version and uptime. Returned info can be of any type. Full list of options at https://geti2p.net/i2pcontrol.html. Usage: \"-i i2p.router.version\"")
@@ -204,7 +233,7 @@ def main():
 	parser.add_argument("-c",
 		"--i2pcontrol-info", 
 		nargs=1,
-		metavar="i2pcontrol-info-id",
+		metavar="key[=value]",
 		dest="i2pcontrol_info", 
 		action="store", 
 		help="Change settings such as password. Usage: \"-c i2pcontrol.password=foo\"")
@@ -212,7 +241,7 @@ def main():
 	parser.add_argument("-r",
 		"--routermanager-info", 
 		nargs=1,
-		metavar="routermanager-info-id",
+		metavar="command",
 		dest="routermanager_info", 
 		action="store", 
 		help="Send a command to the router. Usage: \"-r FindUpdates|Reseed|Restart|RestartGraceful|Shutdown|ShutdownGraceful|Update\"")
@@ -220,7 +249,7 @@ def main():
 	parser.add_argument("-n",
 		"--network-info", 
 		nargs=1,
-		metavar="network-info-id",
+		metavar="key[=value]",
 		dest="network_info", 
 		action="store", 
 		help="Request info such as bandwidth. Usage: \"-n i2p.router.net.bw.in[=xxx]\"")
@@ -228,7 +257,7 @@ def main():
 	parser.add_argument("-a",
 		"--advanced-info", 
 		nargs=1,
-		metavar="advanced-info-id",
+		metavar="key[=value]",
 		dest="advanced_info", 
 		action="store", 
 		help="Request configuration info. Usage: \"-a GetAll|foo[=bar]\"")
@@ -261,19 +290,29 @@ def main():
 		parser.parse_args(["-h"])
 	options = parser.parse_args()
 
+	# todo we don't check all the options
 	if ((options.rate_stat != None) and (options.router_info != None)):
 		print("Error: Choose _one_ option. \n\n")
 		parser.parse_args(["-h"])
 	
+	# todo we don't check all the options
 	if ((options.zabbix != None) and ((options.rate_stat != None) or (options.router_info != None) or (options.from_file != None))):
 		print("Error: Don't combine option --zabbix with other options.\n")
 		parser.parse_args(["-h"])
 
 	# From-file can only be used when either router-info or rate-stat is enabled.
+	# todo we don't check all the options
 	if ((options.from_file != None) and (options.rate_stat == None) and (options.router_info == None)):
 		print("Error: --from-file must be used with either --router-info or --rate-stat.\n")
 		parser.parse_args(["-h"])
 		
+	if (options.port != None):
+		port = int(options.port[0]);
+	if (options.address != None):
+		address = options.address[0];
+	if (options.http):
+		usessl = 0;
+
 	if (options.from_file != None):
 		if (options.router_info != None):
 			from_file(options.from_file[0], options.router_info[0])
