@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 ###
 ### Export from monotone to git
@@ -10,9 +10,11 @@
 ### It defaults to i2p.i2p.
 ###
 ### By duck and zzz May 2011
+### By nextllop 2017 and 2019
 ###
 
 # Configure as necessary
+export PATH="/home/kilian/i2pmtn:$PATH"
 MTN=mtn
 #SERVER="mtn.i2p-projekt.de:4691"
 SERVER="localhost:8998"
@@ -22,7 +24,7 @@ BARE_REPO=1
 
 #cd $(dirname "$0")
 TMP=$(mktemp XXXXXX)
-trap 'rm -f $TMP;exit' 0 1 2 15
+trap "rm -f $TMP; exit" 1 2 4 15
 
 if [ $# -lt 1 ]; then
   BRANCH=i2p.i2p
@@ -125,7 +127,7 @@ else
   # mtn 0.48 syntax
   HEADS=`$MTN --db ${DB} head --norc --ignore-suspend-certs -b $BRANCH 2> /dev/null | wc -l`
 fi
-if [ $HEADS -gt 1 ]; then
+if [ $HEADS -gt 2 ]; then
   echo "Heads:"
   $MTN --db ${DB} head --ignore-suspend-certs -b $BRANCH
   echo "Multiple heads, aborting!" >&2
@@ -147,12 +149,13 @@ echo "Exporting to git format"
 if $MTN --db ${DB} git_export --branches-file=${BRANCHES} --import-marks=.${BRANCH}.mtn.import --export-marks=.${BRANCH}.mtn.export > $TMP; then
   IMP=$(sum .${BRANCH}.mtn.import)
   EXP=$(sum .${BRANCH}.mtn.export)
-  mv .${BRANCH}.mtn.export .${BRANCH}.mtn.import
+  mv -f .${BRANCH}.mtn.export .${BRANCH}.mtn.import
 fi
 echo
 
   if [ "$IMP" = "$EXP" ]; then
-    echo "No new check-ins found" >&2
+      echo "No new check-ins found"
+      rm -f "$TMP"
     exit 4
   fi
 
@@ -173,7 +176,7 @@ fi
 # so we make sure that there's *something* here.
 test -f ../.${BRANCH}.git.import || touch ../.${BRANCH}.git.import
 echo "Importing into git" >&2
-if git fast-import --import-marks=../.${BRANCH}.git.import --export-marks=../.${BRANCH}.git.export < ../$TMP ; then
+if git fast-import --force --import-marks=../.${BRANCH}.git.import --export-marks=../.${BRANCH}.git.export < ../$TMP ; then
   mv ../.${BRANCH}.git.export ../.${BRANCH}.git.import
 fi
 
@@ -185,12 +188,54 @@ fi
 # SHA1 refs should match after this.
 if [ $BRANCH = "i2p.i2p-bote" ]; then
   echo "Fixing up bad date" >&2
-  git filter-branch --env-filter '
+  git filter-branch -f --env-filter '
         if [ "$GIT_AUTHOR_NAME" = "7c54f9fbcb80e56dd9c1e144e255982ef6396df2" ]; then
                 export GIT_AUTHOR_DATE="1325376000 +0000"
                 export GIT_COMMITTER_DATE="1325376000 +0000"
         fi' -- --all
 fi
+
+# Similar issue in i2p.i2p
+if [ $BRANCH = "i2p.i2p" ]; then
+    echo "Fixing bad commit on github" >&2
+    git filter-branch -f \
+        --env-filter "if [ \$GIT_COMMIT = '0a0f6a80b5d175e71cd14c147ed9301675ef584c' ]; then
+                         export GIT_AUTHOR_DATE='Tue Apr 2 16:51:26 2019 +0000'
+                         export GIT_COMMITTER_DATE='Tue Apr 2 16:51:26 2019 +0000'
+                     fi" \
+        --msg-filter "if [ \$GIT_COMMIT = '0a0f6a80b5d175e71cd14c147ed9301675ef584c' ]; then echo Say that it\'s an absolute file; else cat; fi" \
+        -- --all
+fi
+
+if [ $BRANCH = "i2p.www" ]; then
+    echo "Fixing bad commit on github" >&2
+    git filter-branch -f \
+        --env-filter "if [ \$GIT_COMMIT = '4881a6e03bcff91ff3dd0aee22f65f9d23fa09ae' ]; then
+                         export GIT_AUTHOR_NAME='slumlord'
+                         export GIT_AUTHOR_EMAIL='slumlord@mail.i2p'
+                         export GIT_AUTHOR_DATE='Mon Mar 11 08:16:21 2019 +0000'
+                         export GIT_COMMITTER_NAME='slumlord'
+                         export GIT_COMMITTER_EMAIL='slumlord@mail.i2p'
+                         export GIT_COMMITTER_DATE='Mon Mar 11 08:16:21 2019 +0000'
+                       elif [ \$GIT_COMMIT = '8727c83ab059cebfaa3f6bb7fe886655e8711fa6' ]; then
+                         export GIT_AUTHOR_NAME='zab2'
+                         export GIT_AUTHOR_EMAIL='zab2@mail.i2p'
+                         export GIT_AUTHOR_DATE='Sun Mar 31 16:56:30 2019 +0000'
+                         export GIT_COMMITTER_NAME='zab2'
+                         export GIT_COMMITTER_EMAIL='zab2@mail.i2p'
+                         export GIT_COMMITTER_DATE='Sun Mar 31 16:56:30 2019 +0000'
+                       fi" \
+        --msg-filter "if [ \$GIT_COMMIT = '4881a6e03bcff91ff3dd0aee22f65f9d23fa09ae' ]; then
+                         echo \
+\"merge of '2d6cc1ff971fb53ddcde9ffd6219a411fd47f132'
+     and '5c1aba11dd668f20c3f564a730d9bb13119643a4'
+
+
+Merge heads\"
+                      else cat; fi" \
+        -- --all
+fi
+
 
 if [ $BARE_REPO -eq 0 ]; then
   git checkout $BRANCH
@@ -200,13 +245,14 @@ if [ $PUSH_TO_GITHUB -eq 1 ]; then
   if [ $INCLUDE_BRANCHES -eq 1 ]; then
     if [ $PUSH_TO_GITHUB -eq 1 ]; then
       git branch -D unknown
-      git push -f --all --tags origin
+      git push --all --tags origin
     else
-      git push -f --tags origin master:master
+      git push --tags origin master:master
     fi
   else
-    git push -f --tags origin ${BRANCH}:master
+    git push --tags origin ${BRANCH}:master
   fi
 fi
 
 cd ..
+rm -f $TMP

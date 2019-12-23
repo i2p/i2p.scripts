@@ -1,0 +1,3 @@
+#/bin/sh
+
+docker run --network="host" --rm -i --mount type=bind,source="$(pwd)",target=/mtn debian:mtn $@
