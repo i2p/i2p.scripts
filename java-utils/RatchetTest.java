@@ -164,7 +164,8 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
 // Alice
 /////////////////////////////////////////////////////////
 
-    private static final boolean BOBHARDCODE = true;
+    // chisana if true
+    private static final boolean BOBHARDCODE = false;
     private static final String BOB = "ZLEBsdC-WocEvQePmJUAH8A-jp-VIvGI3RKNmEbUhGY=";
 
     /** ALICE */
@@ -220,6 +221,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
             es = keys.getPublic().getData();
             epriv = keys.getPrivate().getData();
             System.out.println("Created Alice ephemeral keys");
+            System.out.println("Alice X: " + Base64.encode(es));
         }
 
         System.out.println("Connecting to Bob at " + _host + ':' + _port);
@@ -228,7 +230,6 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
 
 
 
-        System.out.println("Alice X: " + Base64.encode(es));
         SessionKey sk = new SessionKey(bobhash.getData());
 
         OutputStream out = socket.getOutputStream();
@@ -242,14 +243,16 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
 
         // create payload
         int padlen = 13;
-        byte[] payload = new byte[3 + padlen];
+        byte[] payload = new byte[3 + 36 + 3 + padlen];
         List<Block> blocks = new ArrayList<Block>(4);
-        Block block = new PaddingBlock(_context, padlen);
+        Block block = new AckRequestBlock();
+        blocks.add(block);
+        block = new PaddingBlock(_context, padlen);
         blocks.add(block);
         int payloadlen = createPayload(payload, 0, blocks);
         if (payloadlen != payload.length)
             throw new IllegalStateException("payload size mismatch");
-        System.out.println("payload is:");
+        System.out.println("raw payload is:");
         System.out.println(HexDump.dump(payload));
 
         GarlicMessage msg = new GarlicMessage(_context);
@@ -344,14 +347,17 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         }
         baos.write(tmp);
         msg.setData(baos.toByteArray());
-        out.write(msg.toByteArray());
+        byte[] gmout = msg.toByteArray();
+        out.write(gmout);
+        System.out.println("Elligator2 encoded Eph. key: " + Base64.encode(tmp, 0, 32));
         System.out.println("Wrote elligator2 alice X and frame for msg 1, length: " + tmp.length);
-        System.out.println(HexDump.dump(tmp));
+        System.out.println("Total length is: " + gmout.length);
+        System.out.println(HexDump.dump(gmout));
 
         // generate expected tagset
         byte[] tagsetkey = new byte[32];
         hkdf.calculate(ck, ZEROLEN, INFO_0, tagsetkey);
-        RatchetTagSet tagset = new RatchetTagSet(hkdf, null, pk, new SessionKey(ck), new SessionKey(tagsetkey), 0, 0, 5, 5);
+        RatchetTagSet tagset = new RatchetTagSet(hkdf, null, pk, new SessionKey(ck), new SessionKey(tagsetkey), 0, 0, -1, 5, 5);
 
         // write padding, start KDF 2
 
@@ -506,8 +512,8 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         System.out.println("Decrypted msg 2 payload:\n" + HexDump.dump(payload));
         processPayload(payload, payload.length, true);
 
-        RatchetTagSet tagset_ab = new RatchetTagSet(hkdf, new SessionKey(ck), new SessionKey(k_ab), 0, 0);
-        RatchetTagSet tagset_ba = new RatchetTagSet(hkdf, null, pk, new SessionKey(ck), new SessionKey(k_ba), 0, 0, 5, 5);
+        RatchetTagSet tagset_ab = new RatchetTagSet(hkdf, new SessionKey(ck), new SessionKey(k_ab), 0, 0, -1);
+        RatchetTagSet tagset_ba = new RatchetTagSet(hkdf, null, pk, new SessionKey(ck), new SessionKey(k_ba), 0, 0, -1, 5, 5);
         System.out.println("Created tagset for A->B:\n" + tagset_ab);
         System.out.println("Created tagset for B->A:\n" + tagset_ba);
 
@@ -641,7 +647,7 @@ if (true) { socket.close(); return; }
                 System.out.println("Connection received");
                 socket.setKeepAlive(true);
                 // inline, not threaded
-                runConnection(socket, s, hash, priv);
+                runConnection(socket, s, hash, priv, d.calculateHash());
             } catch (IOException ioe) {
                 System.out.println("Server error accepting");
                 ioe.printStackTrace();
@@ -698,7 +704,7 @@ if (true) { socket.close(); return; }
      * @param inithash initial KDF already mixed with bob's static key
      * @param priv bob's static private key (for noise mode)
      */
-    private void runConnection(Socket socket, byte[] s, byte[] inithash, byte[] priv) throws Exception {
+    private void runConnection(Socket socket, byte[] s, byte[] inithash, byte[] priv, Hash bobHash) throws Exception {
         // read message 1
 
         System.out.println("Handing incoming connection as Bob");
@@ -823,15 +829,17 @@ if (true) { socket.close(); return; }
         // generate outbound tagset
         byte[] tagsetkey = new byte[32];
         hkdf.calculate(ck, ZEROLEN, INFO_0, tagsetkey);
-        RatchetTagSet tagset = new RatchetTagSet(hkdf, new SessionKey(ck), new SessionKey(tagsetkey), 0, 0);
+        RatchetTagSet tagset = new RatchetTagSet(hkdf, new SessionKey(ck), new SessionKey(tagsetkey), 0, 0, -1);
 
         // start writing message 2
 
         // create payload
         int padlen = 13;
-        payload = new byte[3 + padlen];
+        payload = new byte[3 + 36 + 3 + padlen];
         List<Block> blocks = new ArrayList<Block>(4);
-        Block block = new PaddingBlock(_context, padlen);
+        Block block = new AckRequestBlock();
+        blocks.add(block);
+        block = new PaddingBlock(_context, padlen);
         blocks.add(block);
         payloadlen = createPayload(payload, 0, blocks);
         if (payloadlen != payload.length)
@@ -983,8 +991,8 @@ if (true) { socket.close(); return; }
         out.write(msg.toByteArray());
         System.out.println("Wrote msg 2 encrypted payload:\n" + HexDump.dump(encpayload));
 
-        RatchetTagSet tagset_ab = new RatchetTagSet(hkdf, null, alicePubkey, new SessionKey(ck), new SessionKey(k_ab), 0, 0, 5, 5);
-        RatchetTagSet tagset_ba = new RatchetTagSet(hkdf, new SessionKey(ck), new SessionKey(k_ba), 0, 0);
+        RatchetTagSet tagset_ab = new RatchetTagSet(hkdf, null, alicePubkey, new SessionKey(ck), new SessionKey(k_ab), 0, 0, -1, 5, 5);
+        RatchetTagSet tagset_ba = new RatchetTagSet(hkdf, new SessionKey(ck), new SessionKey(k_ba), 0, 0, -1);
         System.out.println("Created tagset for A->B:\n" + tagset_ab);
         System.out.println("Created tagset for B->A:\n" + tagset_ba);
 
@@ -1076,6 +1084,10 @@ if (true) { socket.close(); return; }
                 List<Block> blocks = new ArrayList<Block>(4);
                 Block block = new DateTimeBlock(_context.clock().now());
                 blocks.add(block);
+                block = new AckRequestBlock();
+                blocks.add(block);
+                block = new AckBlock(0, 0);
+                blocks.add(block);
 
                 // small one
                 int msglen = 1 + _context.random().nextInt(200);
@@ -1091,9 +1103,11 @@ if (true) { socket.close(); return; }
                 blocks.add(block);
                 System.out.println("Adding block with " + msglen + " byte I2NP message: " + dmsg);
 
+/*
                 int padlen = 1 + _context.random().nextInt(blimit);
                 block = new PaddingBlock(_context, padlen);
                 blocks.add(block);
+*/
 
                 byte[] tag = ts.consumeNext().getData();
                 SessionKeyAndNonce kn = ts.consumeNextKey();
@@ -1206,8 +1220,20 @@ if (true) { socket.close(); return; }
         System.out.println("Got Next key: " + next);
     }
 
-    public void gotTermination(int reason, long count) {
-        System.out.println("Got TERMINATION block, reason: " + reason + " count: " + count);
+    public void gotAck(int id, int n) {
+        System.out.println("Got ACK block: " + n);
+    }
+
+    public void gotAckRequest() {
+        System.out.println("Got ACK REQUEST block");
+    }
+
+    public void gotTermination(int reason) {
+        System.out.println("Got TERMINATION block, reason: " + reason);
+    }
+
+    public void gotPN(int pn) {
+        System.out.println("Got PN block, pn: " + pn);
     }
 
     public void gotUnknown(int type, int len) {
