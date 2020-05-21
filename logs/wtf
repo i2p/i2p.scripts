@@ -1,0 +1,2 @@
+cd ~/.i2p
+tail -f `ls -t wrapper.log* | head -n1`

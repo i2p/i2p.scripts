@@ -1,0 +1,1 @@
+tail -f ~/.i2p/eventlog.txt

@@ -1,0 +1,1 @@
+$EDITOR `ls -t ~/.i2p/wrapper.log* | head -n1`

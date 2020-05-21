@@ -1,0 +1,1 @@
+grep --color -i "$@" `ls -t ~/.i2p/logs/log-router-*.txt | head -n1`

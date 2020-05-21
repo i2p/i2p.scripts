@@ -1,0 +1,2 @@
+cd ~/.i2p/logs
+tail -f `ls -t log-router-*.txt | head -n1`
