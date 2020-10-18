@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 #
 # view the changes from the last release to the current head;
 # files not checked in are not included

@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 #
 # grep the source
 # maybe grep -R would be better

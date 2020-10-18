@@ -1,3 +1,4 @@
+#! /bin/sh
 #
 # view the changes from the last release for all files in the workspace;
 # this includes local changes not checked in

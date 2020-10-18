@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /usr/bin/env sh
 #
 # view the changes from the last release to the current head;
 # files not checked in are not included
@@ -6,12 +6,9 @@
 # Note that this actually diffs the workspace base (w:) not the head (h:)
 # zzz 2010-03
 #
-REL=`grep 'public final static String VERSION' core/java/src/net/i2p/CoreVersion.java | cut -d '"' -f2`
-if [ -z "$REL" ]
-then
-	echo "Cannot find current version"
-	exit 1
-fi
+# Re-written for git. The git version uses the current head.
+# idk 2020-10
+REL=$(git diff `git tag --sort=committerdate | tail -1`)
 
 MOREEXCLUDE="installer/resources/geoip.txt"
 
@@ -19,9 +16,10 @@ echo "Diffing from $REL"
 POS=`find -name \*.po`
 for i in $MOREEXCLUDE $POS core/java/src/gnu/getopt/*.properties
 do
-	EXCLUDE="$EXCLUDE --exclude $i"
+	EXCLUDE="$EXCLUDE :(exclude)$i"
 done
 echo "excluding $EXCLUDE"
 
-mtn diff $EXCLUDE -r t:i2p-$REL -r w: > $REL.diff
+
+git diff $(git tag --sort=committerdate | tail -1) $(git rev-parse --short HEAD) $EXCLUDE > $REL.diff
 $EDITOR $REL.diff

@@ -5,7 +5,7 @@
 # zzz 06-2012
 # public domain
 #
-DB=i2p.mtn
+DB=/home/idk/.monotone/databases/default.mtn
 TMP=/var/tmp/i2platest$$
 TMP2=/var/tmp/i2platestx$$
 

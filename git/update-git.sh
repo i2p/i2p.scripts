@@ -19,7 +19,7 @@ MTN=mtn
 #SERVER="mtn.i2p-projekt.de:4691"
 SERVER="localhost:8998"
 INCLUDE_BRANCHES=0
-PUSH_TO_GITHUB=1
+PUSH_TO_GITHUB=0
 BARE_REPO=1
 
 #cd $(dirname "$0")

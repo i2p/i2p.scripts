@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /usr/bin/env sh
 #
 # view the changes in the current workspace for files NOT listed
 # in filelist.txt; this is a good way to make sure you're not
@@ -6,7 +6,9 @@
 # check it in
 # zzz 2008-10
 #
-mtn dif `cat filelist.txt` > out.diff
-mtn dif > all.diff
+# Re-written for git.
+# idk 2020-10
+git diff `cat filelist.txt` > out.diff
+git diff > all.diff
 diff all.diff out.diff | cut -c3- > missing.diff
 $EDITOR missing.diff

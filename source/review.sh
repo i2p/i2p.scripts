@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/sh
 #
 # view the diff for the files listed in filelist.txt
 # zzz 2008-10
