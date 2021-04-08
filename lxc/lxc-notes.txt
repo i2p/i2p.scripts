@@ -37,7 +37,8 @@ In container i2p1:
 apt install openjdk-15-jre-headless
 install i2p created from ant installer-linux: java -jar i2pinstall... -console
 don't run i2p yet!!!
-copy the defaultrouter.config to /home/ubuntu/i2p in the container
+copy the default router.config to /home/ubuntu/i2p in the container
+ditto logger.config, clients.config, webapps.config
 now clone container 1 to containers 2-16 with lxc-copy
 now start all containers with lxcstart
 now start i2p for the first time in all containers with lxcstarti2p
