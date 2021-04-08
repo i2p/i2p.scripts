@@ -1,0 +1,47 @@
+All scripts here are CC0 or public domain.
+
+
+Hardware requirements: 16GB works fine for 16 containers so far
+
+
+chmod 755 .local .local/share
+mkdir .local/share/lxc
+
+sudo adduser --uid=101000 --gid=101000 lxcuser
+sudo addgroup --gid=101000 lxcgroup
+sudo adduser zzz lxcgroup
+
+
+Doesn't work - systemd ignores system ulimits:
+increase open files in /etc/security/limits.conf
+Does work:
+Add the following to /etc/systemd/system.conf and /etc/systemd/user.conf
+DefaultLimitNOFILE=32768:524288
+
+
+/etc/sysctl.conf
+fs.inotify.max_user_instances=1024
+or sudo echo 1024 > /proc/sys/fs/inotify/max_user_instances
+default 128 is not enough
+
+
+
+No reseeder code or container needed!
+
+
+
+Create container i2p1
+Start container i2p1: lxcstart 1
+Get a shell in i2p1: lxca 1
+In container i2p1:
+apt install openjdk-15-jre-headless
+install i2p created from ant installer-linux: java -jar i2pinstall... -console
+don't run i2p yet!!!
+copy the defaultrouter.config to /home/ubuntu/i2p in the container
+now clone container 1 to containers 2-16 with lxc-copy
+now start all containers with lxcstart
+now start i2p for the first time in all containers with lxcstarti2p
+wait a couple of minutes for all the routers to create RIs
+run lxcfloodri to flood the RIs from each router to all the others
+wait a couple of minutes for all the routers to load the flooded RIs
+they should now be talking to each other

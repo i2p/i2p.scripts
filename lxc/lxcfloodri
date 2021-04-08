@@ -1,0 +1,19 @@
+#
+# Flood each router's RIs to every other router.
+# This may be done either while routers are running or stopped.
+#
+# zzz 4/21 CC0
+#
+DIR=$HOME/.local/share/lxc/i2p
+DIR2=/rootfs/home/ubuntu
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+do
+	echo "copying $DIR$i$DIR2 RIs to all others"
+	#sudo sh -c "ls $DIR$i$DIR2/.i2p/netDb/"
+	#sudo sh -c "ls $DIR$i$DIR2/.i2p/netDb/r*/*.dat"
+	for j in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+	do
+		sudo sh -c "cp $DIR$i$DIR2/.i2p/netDb/r*/*.dat $DIR$j$DIR2/.i2p/netDb"
+		sudo sh -c "chown lxcuser $DIR$j$DIR2/.i2p/netDb/*.dat"
+	done
+done

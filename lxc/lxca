@@ -1,0 +1,12 @@
+#
+# Open shell on a container
+#
+# zzz 4/21 CC0
+#
+if [ $# -ne 1 ]
+then
+	echo "usage: number"
+	exit 1
+fi
+
+lxc-attach -n i2p$1

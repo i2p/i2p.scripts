@@ -1,0 +1,18 @@
+#
+# Add a config item to .i2p/router.config in all containers
+#
+# zzz 4/21 CC0
+#
+if [ $# -ne 1 ]
+then
+	echo "usage: foo=bar"
+	exit 1
+fi
+
+DIR=$HOME/.local/share/lxc/i2p
+DIR2=/rootfs/home/ubuntu/.i2p/router.config
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+do
+	echo "adding config to i2p$i"
+	sudo bash -c "echo '$1' >> ${DIR}$i$DIR2"
+done
