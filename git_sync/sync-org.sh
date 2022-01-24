@@ -2,14 +2,41 @@
 
 . ./config
 
-URLLIST=`./list-org-cloneurls.sh`
-HERE=$(pwd)
+URLLIST=$(./list-org-cloneurls.sh)
+
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
 for URL in $URLLIST; do
   BASEURL=$(echo $URL | sed "s|github.com:$ORG|i2pgit.org:i2p-hackers|g" | sed 's|i2p\.plugins\.i2psnark-rpc|i2psnark-rpc|g')
   CLONEDIR=$(echo $URL | sed "s|git@github.com:$ORG/||g" | sed 's|.git||g')
-  if [ -d $CLONEDIR ]; then
-    cd $CLONEDIR && git pull origin --tags && \
-      git pull origin master && git push github --all
-    cd $HERE
+  echo "Syncing: $URL, $BASEURL, $CLONEDIR"
+  if [ -d "$CLONEDIR" ]; then
+    cd "$CLONEDIR" || echo "Could not cd to $CLONEDIR"; exit 1
+    while true; do
+      # pull all the updates
+      echo "Pulling updates for $CLONEDIR..."
+      git pull --all && break
+    done
+    while true; do
+      # pull all the tags
+      echo "Pulling tags for $CLONEDIR..."
+      git pull origin --tags && break
+    done
+    while true; do
+      # push all the updates
+      echo "Merging updates for $CLONEDIR..."
+      git pull origin master && break
+    done
+    while true; do
+      # push all the branches
+      echo "Pushing updates for $CLONEDIR..."
+      git push github --all && break
+    done
+    while true; do
+      # push all the tags
+      echo "Pushing tags for $CLONEDIR..."
+      git push github --tags && break
+    done
+    cd "$HERE" || echo "Could not cd to $HERE"; exit 1
   fi
 done
