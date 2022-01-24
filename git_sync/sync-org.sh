@@ -11,7 +11,8 @@ for URL in $URLLIST; do
   CLONEDIR=$(echo $URL | sed "s|git@github.com:$ORG/||g" | sed 's|.git||g')
   echo "Syncing: $URL, $BASEURL, $CLONEDIR"
   if [ -d "$CLONEDIR" ]; then
-    cd "$CLONEDIR" || echo "Could not cd to $CLONEDIR"; exit 1
+    echo "Changing to $CLONEDIR"
+    cd "$CLONEDIR" || exit 1
     while true; do
       # pull all the updates
       echo "Pulling updates for $CLONEDIR..."
@@ -37,6 +38,7 @@ for URL in $URLLIST; do
       echo "Pushing tags for $CLONEDIR..."
       git push github --tags && break
     done
-    cd "$HERE" || echo "Could not cd to $HERE"; exit 1
+    echo "Returning home"
+    cd "$HERE" || exit 1
   fi
 done
