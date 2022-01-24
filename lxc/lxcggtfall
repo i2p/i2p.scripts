@@ -1,0 +1,21 @@
+#
+# search router log in all containers
+#
+# zzz 4/21 CC0
+#
+if [ $# -ne 1 ]
+then
+	echo "usage: search"
+	exit 1
+fi
+
+DIR=$HOME/.local/share/lxc/i2p
+DIR2=/rootfs/home/ubuntu/.i2p/logs
+ALL="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
+for i in $ALL
+do
+	cd $DIR$i$DIR2
+	echo "----- $i -----"
+	sudo grep --color -i "$1" `ls -t log-router-*.txt | head -n1`
+	echo
+done

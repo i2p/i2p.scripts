@@ -1,0 +1,6 @@
+#
+# get info on all containers
+#
+# zzz 4/21 CC0
+#
+lxc-ls --fancy

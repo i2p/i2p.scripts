@@ -1,0 +1,16 @@
+#
+# Start specified or all containers
+#
+# zzz 4/21 CC0
+#
+ulimit -n 32768
+ALL="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
+ARG=${@:-$ALL}
+for i in $ARG
+do
+	echo starting $i
+	lxc-start -n i2p$i -o lxclogs/$i.log -l NOTICE
+	lxc-wait -n i2p$i -s 'RUNNING|STOPPED'
+        sleep 1
+	lxc-attach -n i2p$i -- ip addr add 2fff::$i/64 dev eth0 scope global
+done

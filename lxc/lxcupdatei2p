@@ -1,0 +1,15 @@
+#
+# copy i2pupdate.zip to specified or all containers
+#
+# zzz 4/21 CC0
+#
+DIR=$HOME/.local/share/lxc/i2p
+DIR2=/rootfs/home/ubuntu/.i2p/
+
+ALL="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
+ARG=${@:-$ALL}
+for i in $ARG
+do
+	echo "copying i2pupdate.zip to $DIR$i$DIR2"
+	sudo cp i2pupdate.zip $DIR$i$DIR2
+done
