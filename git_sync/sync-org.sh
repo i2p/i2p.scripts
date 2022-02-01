@@ -41,6 +41,6 @@ for URL in $URLLIST; do
       git push github --tags && break
     done
     echo "Returning home"
-    cd "$HERE" || exit 1
+    cd "$HERE"
   fi
 done
