@@ -1,15 +1,36 @@
 Git sync scripts
 ================
 
-These are some simple, reasonably-stable scripts for syncing between
-gitlab and github. They need to be run by an SSH user with permission
-to use the repository on both services. It can otherwise be run without
-logging into the Github or Gitlab API's.
+IF you are an SSH user authorized on both [I2P Git](https://i2pgit.org/i2p-hackers/)
+and on [Github](https://github.com/i2p), then you are able to run this script. Right
+now, that's basically only me. If you want to also run this script, please announce
+on zzz.i2p or reach out to `eyedeekay`(sometimes also `idk`) on Irc2P.
 
-To use it, run:
+Add your keys to the authentication agent before starting. Everything runs from this
+directory, without modification.
 
-        ./run.sh
+In order to perform the initial clone of the I2P source code, run:
 
-To run it in the background, run:
+```sh
+./clone-org.sh
+```
 
-        ./background.sh
+In order to perform a one-time sync all the source code in those repositories between
+gitlab and github, run
+
+```sh
+./sync-org.sh
+```
+
+There are also scripts to run continuously. If you want to run it continuously in the
+foreground, use `run.sh`:
+
+```sh
+./run.sh
+```
+
+To run it in the background, use `background.sh`:
+
+```sh
+./background.sh
+```
