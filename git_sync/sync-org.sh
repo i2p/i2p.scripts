@@ -31,6 +31,11 @@ for URL in $URLLIST; do
       git pull origin master && break
     done
     for d in $DO; do
+      # push all the updates
+      echo "Merging updates for $CLONEDIR... attempt $d"
+      git pull origin master && break
+    done
+    for d in $DO; do
       # push all the branches
       echo "Pushing updates for $CLONEDIR... attempt $d"
       git push github --all && break
