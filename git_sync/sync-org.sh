@@ -33,7 +33,7 @@ for URL in $URLLIST; do
     for d in $DO; do
       # push all the updates
       echo "Merging updates for $CLONEDIR... attempt $d"
-      git pull origin master && break
+      git pull github master && break
     done
     for d in $DO; do
       # push all the branches
