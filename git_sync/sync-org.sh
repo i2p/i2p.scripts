@@ -45,6 +45,11 @@ for URL in $URLLIST; do
       echo "Pushing tags for $CLONEDIR... attempt $d"
       git push github --tags && break
     done
+    for d in $DO; do
+      # push all the tags
+      echo "Pushing tags for $CLONEDIR... attempt $d"
+      git push --all && break
+    done
     echo "Returning home"
     cd "$HERE"
   fi
