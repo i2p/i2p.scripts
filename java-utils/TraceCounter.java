@@ -27,10 +27,10 @@ public class TraceCounter {
      *  @param cleanTime how often to dump out the count and reset the counters
      */
     public TraceCounter(String name, long cleanTime) {
-        this.counter = new ObjectCounter();
+        this.counter = new ObjectCounter<WrappedException>();
         this.name = name;
         this.CLEAN_TIME = cleanTime;
-        SimpleScheduler.getInstance().addPeriodicEvent(new Cleaner(), CLEAN_TIME);
+        SimpleTimer2.getInstance().addPeriodicEvent(new Cleaner(), CLEAN_TIME);
     }
 
     public void trace(Exception e) {
@@ -39,8 +39,8 @@ public class TraceCounter {
 
     private class Cleaner implements SimpleTimer.TimedEvent {
         public void timeReached() {
-           if (_log.shouldLog(Log.INFO)) {
-               List<WrappedException> traces = new ArrayList();
+           if (_log.shouldInfo()) {
+               List<WrappedException> traces = new ArrayList<WrappedException>();
                traces.addAll(counter.objects());
                Collections.sort(traces, new WrappedExceptionComparator());
                // dont intermix the logging from multiple TraceCounters
