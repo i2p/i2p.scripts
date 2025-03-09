@@ -207,8 +207,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         if (_useNoise) {
             state = new HandshakeState(HandshakeState.PATTERN_ID_IK, HandshakeState.INITIATOR, ekf);
             state.getRemotePublicKey().setPublicKey(s, 0);
-            state.getLocalKeyPair().setPublicKey(as, 0);
-            state.getLocalKeyPair().setPrivateKey(priv, 0);
+            state.getLocalKeyPair().setKeys(priv, 0, as, 0);
             System.out.println("Before start");
             System.out.println(state.toString());
             state.start();
@@ -247,7 +246,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         List<Block> blocks = new ArrayList<Block>(4);
         Block block = new AckRequestBlock();
         blocks.add(block);
-        block = new PaddingBlock(_context, padlen);
+        block = new PaddingBlock(padlen);
         blocks.add(block);
         int payloadlen = createPayload(payload, 0, blocks);
         if (payloadlen != payload.length)
@@ -683,7 +682,7 @@ if (true) { socket.close(); return; }
         for (int i = 0; i < 3; i++) {
             Lease2 l2 = new Lease2();
             now += 10000;
-            l2.setEndDate(new java.util.Date(now));
+            l2.setEndDate(now);
             byte[] gw = new byte[32];
             _context.random().nextBytes(gw);
             l2.setGateway(new Hash(gw));
@@ -713,8 +712,7 @@ if (true) { socket.close(); return; }
         HandshakeState state = null;
         if (_useNoise) {
             state = new HandshakeState(HandshakeState.PATTERN_ID_IK, HandshakeState.RESPONDER, ekf);
-            state.getLocalKeyPair().setPublicKey(s, 0);
-            state.getLocalKeyPair().setPrivateKey(priv, 0);
+            state.getLocalKeyPair().setKeys(priv, 0, s, 0);
             System.out.println("Before start");
             System.out.println(state.toString());
             state.start();
@@ -839,7 +837,7 @@ if (true) { socket.close(); return; }
         List<Block> blocks = new ArrayList<Block>(4);
         Block block = new AckRequestBlock();
         blocks.add(block);
-        block = new PaddingBlock(_context, padlen);
+        block = new PaddingBlock(padlen);
         blocks.add(block);
         payloadlen = createPayload(payload, 0, blocks);
         if (payloadlen != payload.length)
@@ -1098,7 +1096,7 @@ if (true) { socket.close(); return; }
                 GarlicClove clove = new GarlicClove(_context);
                 clove.setData(dmsg);
                 clove.setInstructions(DeliveryInstructions.LOCAL);
-                clove.setExpiration(new Date(_context.clock().now() + 60*1000));
+                clove.setExpiration(_context.clock().now() + 60*1000);
                 block = new GarlicBlock(clove);
                 blocks.add(block);
                 System.out.println("Adding block with " + msglen + " byte I2NP message: " + dmsg);
