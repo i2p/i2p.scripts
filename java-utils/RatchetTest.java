@@ -16,6 +16,7 @@ import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.List;
 
 // both the following are GeneralSecurityExceptions
@@ -125,6 +126,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
     private final File _riFile;
     private final File _skFile;
     private final File _pkFile;
+    private final EncType _type;
 
     private final X25519KeyFactory kf;
     private final Elg2KeyFactory ekf;
@@ -135,6 +137,11 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
     
     public RatchetTest(RouterContext ctx, String host, int port, boolean isAlice, boolean useNoise,
                        File rifile, File skfile, File pkfile) {
+        this(ctx, host, port, isAlice, useNoise, rifile, skfile, pkfile, EncType.ECIES_X25519);
+    }
+    
+    public RatchetTest(RouterContext ctx, String host, int port, boolean isAlice, boolean useNoise,
+                       File rifile, File skfile, File pkfile, EncType type) {
         _context = ctx;
         _log = ctx.logManager().getLog(getClass());
         _log.setMinimumPriority(Log.DEBUG);
@@ -147,8 +154,14 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         _riFile = rifile;
         _skFile = skfile;
         _pkFile = pkfile;
+        _type = type;
 
-        kf = new X25519KeyFactory(_context);
+        if (type == EncType.ECIES_X25519)
+            kf = new X25519KeyFactory(_context);
+        else if (useNoise)
+            kf = new TypeKeyFactory(_context, type);
+        else
+            throw new IllegalArgumentException("PQ types require -n");
         kf.start();
         ekf = new Elg2KeyFactory(_context);
         ekf.start();
@@ -157,8 +170,42 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
 
         if (useNoise)
             System.out.println("Using Noise state machine mode");
+        System.out.println("Using encryption type " + type);
     }
 
+    /**
+     *  Make type 5-7 keys since we don't have a key factory yet
+     */
+    private static class TypeKeyFactory extends X25519KeyFactory {
+        private final EncType etype;
+        public TypeKeyFactory(RouterContext ctx, EncType type) {
+            super(ctx);
+            etype = type;
+        }
+        @Override
+        public KeyPair getKeys() {
+            KeyPair rv = super.getKeys();
+            PublicKey pk = new PublicKey(etype, rv.getPublic().getData());
+            PrivateKey sk = new PrivateKey(etype, rv.getPrivate().getData());
+            rv = new KeyPair(pk, sk);
+            return rv;
+        }
+    }
+
+    private static String getNoisePattern(EncType type) {
+        switch(type) {
+          case ECIES_X25519:
+            return HandshakeState.PATTERN_ID_IK;
+          case MLKEM512_X25519:
+            return HandshakeState.PATTERN_ID_IKHFS_512;
+          case MLKEM768_X25519:
+            return HandshakeState.PATTERN_ID_IKHFS_768;
+          case MLKEM1024_X25519:
+            return HandshakeState.PATTERN_ID_IKHFS_1024;
+          default:
+              throw new IllegalArgumentException("No pattern for " + type);
+        }
+    }
 
 ///////////////////////////////////////////////////////
 // Alice
@@ -180,17 +227,17 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
             if (keylist == null)
                 throw new IllegalArgumentException("no keys");
             for (PublicKey k : keylist) {
-                if (k.getType().equals(EncType.ECIES_X25519)) {
+                if (k.getType().equals(_type)) {
                     pk = k;
                     break;
                 }
             }
             if (pk == null)
-                throw new IOException("no ECIES key");
+                throw new IOException("no " + _type + " key found in Bob's leaseset");
             s = pk.getData();
         } else {
             s = Base64.decode(BOB);
-            pk = new PublicKey(EncType.ECIES_X25519, s);
+            pk = new PublicKey(_type, s);
             bobhash = Hash.FAKE_HASH;
         }
         System.out.println("Loaded Bob LS2:\n" /* + bob */);
@@ -205,7 +252,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         byte[] epriv = null;
         HandshakeState state = null;
         if (_useNoise) {
-            state = new HandshakeState(HandshakeState.PATTERN_ID_IK, HandshakeState.INITIATOR, ekf);
+            state = new HandshakeState(getNoisePattern(_type), HandshakeState.INITIATOR, ekf);
             state.getRemotePublicKey().setPublicKey(s, 0);
             state.getLocalKeyPair().setKeys(priv, 0, as, 0);
             System.out.println("Before start");
@@ -242,7 +289,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
 
         // create payload
         int padlen = 13;
-        byte[] payload = new byte[3 + 36 + 3 + padlen];
+        byte[] payload = new byte[3 + 1 + 3 + padlen];
         List<Block> blocks = new ArrayList<Block>(4);
         Block block = new AckRequestBlock();
         blocks.add(block);
@@ -250,7 +297,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         blocks.add(block);
         int payloadlen = createPayload(payload, 0, blocks);
         if (payloadlen != payload.length)
-            throw new IllegalStateException("payload size mismatch");
+            throw new IllegalStateException("payload size mismatch expected " + payload.length + " got " + payloadlen);
         System.out.println("raw payload is:");
         System.out.println(HexDump.dump(payload));
 
@@ -604,13 +651,13 @@ if (true) { socket.close(); return; }
             throw new IllegalArgumentException("no keys");
         PublicKey pk = null;
         for (PublicKey k : keylist) {
-            if (k.getType().equals(EncType.ECIES_X25519)) {
+            if (k.getType().equals(_type)) {
                 pk = k;
                 break;
             }
         }
         if (pk == null)
-            throw new IOException("no ECIES key");
+            throw new IOException("no " + _type + " key found in Bob's leaseset");
         s = pk.getData();
 
         KeyPair keys = keyload(_skFile);
@@ -637,7 +684,7 @@ if (true) { socket.close(); return; }
 
 
         ServerSocket server = new ServerSocket(_port, 0, InetAddress.getByName(_host));
-        System.out.println("Bob listening for NTCP2 connections on " + _host + ':' + _port);
+        System.out.println("Bob listening for Ratchet connections on " + _host + ':' + _port);
 
         while (_running) {
             Socket socket = null;
@@ -711,7 +758,7 @@ if (true) { socket.close(); return; }
 
         HandshakeState state = null;
         if (_useNoise) {
-            state = new HandshakeState(HandshakeState.PATTERN_ID_IK, HandshakeState.RESPONDER, ekf);
+            state = new HandshakeState(getNoisePattern(_type), HandshakeState.RESPONDER, ekf);
             state.getLocalKeyPair().setKeys(priv, 0, s, 0);
             System.out.println("Before start");
             System.out.println(state.toString());
@@ -761,7 +808,7 @@ if (true) { socket.close(); return; }
             // save for tagset HKDF
             ck = state.getChainingKey();
             state.getRemotePublicKey().getPublicKey(alicestatic, 0);
-            alicePubkey = new PublicKey(EncType.ECIES_X25519, alicestatic);
+            alicePubkey = new PublicKey(_type, alicestatic);
         } else {
             // MixHash(e.pubkey)
             System.out.println("MixHash(bob static) " + Base64.encode(inithash));
@@ -789,7 +836,7 @@ if (true) { socket.close(); return; }
                 throw new IOException("Bad AEAD msg 1 pt 1", gse);
             }
             System.out.println("Got Alice static key: " + Base64.encode(alicestatic));
-            alicePubkey = new PublicKey(EncType.ECIES_X25519, alicestatic);
+            alicePubkey = new PublicKey(_type, alicestatic);
             // MixHash(cipertext)
             tmp2 = new byte[48];
             System.arraycopy(tmp, 32, tmp2, 0, 48);
@@ -833,7 +880,7 @@ if (true) { socket.close(); return; }
 
         // create payload
         int padlen = 13;
-        payload = new byte[3 + 36 + 3 + padlen];
+        payload = new byte[3 + 1 + 3 + padlen];
         List<Block> blocks = new ArrayList<Block>(4);
         Block block = new AckRequestBlock();
         blocks.add(block);
@@ -841,7 +888,7 @@ if (true) { socket.close(); return; }
         blocks.add(block);
         payloadlen = createPayload(payload, 0, blocks);
         if (payloadlen != payload.length)
-            throw new IllegalStateException("payload size mismatch");
+            throw new IllegalStateException("payload size mismatch expected " + payload.length + " got " + payloadlen);
         System.out.println("payload is:");
         System.out.println(HexDump.dump(payload));
 
@@ -1353,7 +1400,7 @@ if (true) { socket.close(); return; }
 
 
     /** secret keys */
-    private static KeyPair keyload(File f) throws Exception {
+    private KeyPair keyload(File f) throws Exception {
         byte[] pub = new byte[32];
         byte[] priv = new byte[32];
         InputStream is = null;
@@ -1369,8 +1416,8 @@ if (true) { socket.close(); return; }
                 try { is.close(); } catch (IOException ioe) {}
             }
         }
-        PublicKey kp = new PublicKey(EncType.ECIES_X25519, pub);
-        PrivateKey ks = new PrivateKey(EncType.ECIES_X25519, priv);
+        PublicKey kp = new PublicKey(_type, pub);
+        PrivateKey ks = new PrivateKey(_type, priv);
         return new KeyPair(kp, ks);
     }
 
@@ -1437,9 +1484,10 @@ if (true) { socket.close(); return; }
         File sk = null;
         File pk = null;
         File ri = null;
+        String type = null;
         boolean useNoise = false;
 
-        Getopt g = new Getopt("ntcp2test", args, "h:p:s:k:r:n");
+        Getopt g = new Getopt("ratchettest", args, "h:p:s:k:r:nt:");
         int c;
         while ((c = g.getopt()) != -1) {
             switch (c) {
@@ -1467,6 +1515,10 @@ if (true) { socket.close(); return; }
                     useNoise = true;
                     break;
 
+                case 't':
+                    type = g.getOptarg();
+                    break;
+
                 default:
                     error = true;
             }
@@ -1483,7 +1535,16 @@ if (true) { socket.close(); return; }
         RouterContext ctx = RouterContext.listContexts().get(0);
         boolean isAlice = pk == null && sk == null;
 
-        RatchetTest test = new RatchetTest(ctx, host, port, isAlice, useNoise, ri, pk, sk);
+        EncType etype = EncType.ECIES_X25519;
+        if (type != null) {
+            etype = EncType.parseEncType(type);
+            if (etype == null) {
+                System.err.println("Bad enc type " + type);
+                System.exit(1);
+            }
+        }
+
+        RatchetTest test = new RatchetTest(ctx, host, port, isAlice, useNoise, ri, pk, sk, etype);
         System.out.println("Starting RatchetTest");
          try {
             if (isAlice)
@@ -1499,9 +1560,23 @@ if (true) { socket.close(); return; }
 
     private static final void usage() {
         System.err.println("Usage: RatchetTest\n" +
-                           "   bob listen args:    [-h bobhost] [-p bobport] [-n] -s bobsecretkeyfile -k bobprivkeyfile -r bobls2file\n" +
-                           "   alice connect args: [-h bobhost] [-p bobport] [-n] -r bobls2file\n" +
+                           "   bob listen args:    [-h bobhost] [-p bobport] [-t enctype] [-n] -s bobsecretkeyfile -k bobprivkeyfile -r bobls2file\n" +
+                           "   alice connect args: [-h bobhost] [-p bobport] [-t enctype] [-n] -r bobls2file\n" +
                            "   -n: use noise state machine\n" +
-                           "   default host 127.0.0.1; default port 8887");
+                           "   default host 127.0.0.1; default port 8887\n" +
+                           "   The bob side will create the files if absent.");
+        StringBuilder buf = new StringBuilder();
+        buf.append("\nAvailable encryption types:\n");
+        for (EncType t : EnumSet.allOf(EncType.class)) {
+            if (!t.isAvailable())
+                continue;
+            if (t.getCode() == 0)
+                continue;
+            buf.append("      ").append(t).append("\t(code: ").append(t.getCode()).append(')');
+            if (t.getCode() == 4)
+                buf.append(" DEFAULT");
+            buf.append('\n');
+        }
+        System.err.println(buf.toString());
     }
 }
