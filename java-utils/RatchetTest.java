@@ -36,6 +36,7 @@ import net.i2p.I2PAppContext;
 import net.i2p.crypto.EncType;
 import net.i2p.crypto.HKDF;
 import net.i2p.crypto.HMAC256Generator;
+import net.i2p.crypto.KeyFactory;
 import net.i2p.crypto.KeyPair;
 import net.i2p.crypto.SHA256Generator;
 import net.i2p.crypto.SigType;
@@ -62,6 +63,7 @@ import net.i2p.data.i2np.I2NPMessageException;
 import net.i2p.data.i2np.I2NPMessageHandler;
 import net.i2p.data.i2np.UnknownI2NPMessage;
 import net.i2p.router.RouterContext;
+import net.i2p.router.crypto.pqc.MLKEM;
 import static net.i2p.router.crypto.ratchet.RatchetPayload.*;
 import net.i2p.router.transport.crypto.X25519KeyFactory;
 import net.i2p.util.HexDump;
@@ -130,6 +132,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
 
     private final X25519KeyFactory kf;
     private final Elg2KeyFactory ekf;
+    private final PQKeyFactory hkf;
     private final Elligator2 elg2;
     private final HKDF hkdf;
 
@@ -156,12 +159,15 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         _pkFile = pkfile;
         _type = type;
 
-        if (type == EncType.ECIES_X25519)
+        if (type == EncType.ECIES_X25519) {
             kf = new X25519KeyFactory(_context);
-        else if (useNoise)
+            hkf = null;
+        } else if (useNoise) {
             kf = new TypeKeyFactory(_context, type);
-        else
+            hkf = new PQKeyFactory(type);
+        } else {
             throw new IllegalArgumentException("PQ types require -n");
+        }
         kf.start();
         ekf = new Elg2KeyFactory(_context);
         ekf.start();
@@ -189,6 +195,36 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
             PrivateKey sk = new PrivateKey(etype, rv.getPrivate().getData());
             rv = new KeyPair(pk, sk);
             return rv;
+        }
+    }
+
+    /**
+     *  Make type 5-7 hybrid keys since we don't have a key factory yet
+     */
+    private static class PQKeyFactory implements KeyFactory {
+        private final EncType etype;
+        public PQKeyFactory(EncType type) {
+            switch(type) {
+                case MLKEM512_X25519:
+                    type = EncType.MLKEM512_X25519_INT;
+                    break;
+                case MLKEM768_X25519:
+                    type = EncType.MLKEM768_X25519_INT;
+                    break;
+                case MLKEM1024_X25519:
+                    type = EncType.MLKEM1024_X25519_INT;
+                    break;
+                default:
+                     throw new IllegalArgumentException("Unsupported type " + type);
+            }
+            etype = type;
+        }
+        public KeyPair getKeys() {
+            try {
+                return MLKEM.getKeys(etype);
+            } catch (GeneralSecurityException gse) {
+                throw new IllegalStateException(gse);
+            }
         }
     }
 
@@ -252,7 +288,7 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         byte[] epriv = null;
         HandshakeState state = null;
         if (_useNoise) {
-            state = new HandshakeState(getNoisePattern(_type), HandshakeState.INITIATOR, ekf);
+            state = new HandshakeState(getNoisePattern(_type), HandshakeState.INITIATOR, ekf, hkf);
             state.getRemotePublicKey().setPublicKey(s, 0);
             state.getLocalKeyPair().setKeys(priv, 0, as, 0);
             System.out.println("Before start");
@@ -342,7 +378,19 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
 
         if (_useNoise) {
             // encrypt X and write X and the options block
-            tmp = new byte[32 + 32 + 16 + payloadlen + 16];
+            int tmplen = 32 + 32 + 16 + payloadlen + 16;
+            switch(_type) {
+                case MLKEM512_X25519:
+                    tmplen += EncType.MLKEM512_X25519_INT.getPubkeyLen() + 16;
+                    break;
+                case MLKEM768_X25519:
+                    tmplen += EncType.MLKEM768_X25519_INT.getPubkeyLen() + 16;
+                    break;
+                case MLKEM1024_X25519:
+                    tmplen += EncType.MLKEM1024_X25519_INT.getPubkeyLen() + 16;
+                    break;
+            }
+            tmp = new byte[tmplen];
             state.writeMessage(tmp, 0, payload, 0, payload.length);
             System.out.println(state.toString());
             // overwrite eph. key with encoded key
@@ -424,8 +472,20 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         //    System.out.println("Tag NOT FOUND in expected tagset");
 
 
-        tmp = new byte[48];
-        System.arraycopy(itmp, 8, tmp, 0, 48);
+        int tmplen = 48;
+        switch(_type) {
+            case MLKEM512_X25519:
+                tmplen += EncType.MLKEM512_X25519_CT.getPubkeyLen() + 16;
+                break;
+            case MLKEM768_X25519:
+                tmplen += EncType.MLKEM768_X25519_CT.getPubkeyLen() + 16;
+                break;
+            case MLKEM1024_X25519:
+                tmplen += EncType.MLKEM1024_X25519_CT.getPubkeyLen() + 16;
+                break;
+        }
+        tmp = new byte[tmplen];
+        System.arraycopy(itmp, 8, tmp, 0, tmplen);
         System.out.println("Got msg 2 frame part 1");
         System.out.println(HexDump.dump(tmp));
 
@@ -443,13 +503,13 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
             state.mixHash(tag, 0, TAGLEN);
             System.out.println(state.toString());
             try {
-                state.readMessage(tmp, 0, 48, ZEROLEN, 0);
+                state.readMessage(tmp, 0, tmplen, ZEROLEN, 0);
             } catch (GeneralSecurityException gse) {
                 System.out.println("**************\nState at failure:");
                 System.out.println(state.toString());
                 throw new IOException("Bad AEAD msg 2", gse);
             }
-            System.out.println("After Message 1");
+            System.out.println("After Message 2");
             System.out.println(state.toString());
         } else {
             // KDF 2
@@ -758,7 +818,7 @@ if (true) { socket.close(); return; }
 
         HandshakeState state = null;
         if (_useNoise) {
-            state = new HandshakeState(getNoisePattern(_type), HandshakeState.RESPONDER, ekf);
+            state = new HandshakeState(getNoisePattern(_type), HandshakeState.RESPONDER, ekf, hkf);
             state.getLocalKeyPair().setKeys(priv, 0, s, 0);
             System.out.println("Before start");
             System.out.println(state.toString());
@@ -784,6 +844,17 @@ if (true) { socket.close(); return; }
         int len = tmp.length;
         System.out.println(HexDump.dump(tmp));
         int payloadlen = len - (32 + 32 + 16 + 16);
+        switch(_type) {
+            case MLKEM512_X25519:
+                payloadlen -= EncType.MLKEM512_X25519_INT.getPubkeyLen() + 16;
+                break;
+            case MLKEM768_X25519:
+                payloadlen -= EncType.MLKEM768_X25519_INT.getPubkeyLen() + 16;
+                break;
+            case MLKEM1024_X25519:
+                payloadlen -= EncType.MLKEM1024_X25519_INT.getPubkeyLen() + 16;
+                break;
+        }
         byte[] payload = new byte[payloadlen];
 
         byte[] tmp2 = new byte[32];
@@ -906,7 +977,19 @@ if (true) { socket.close(); return; }
 
         if (_useNoise) {
             state.mixHash(tag, 0, TAGLEN);
-            tmp = new byte[32 + 16]; // 48
+            int tmplen = 32 + 16; // 48
+            switch(_type) {
+                case MLKEM512_X25519:
+                    tmplen += EncType.MLKEM512_X25519_CT.getPubkeyLen() + 16;
+                    break;
+                case MLKEM768_X25519:
+                    tmplen += EncType.MLKEM768_X25519_CT.getPubkeyLen() + 16;
+                    break;
+                case MLKEM1024_X25519:
+                    tmplen += EncType.MLKEM1024_X25519_CT.getPubkeyLen() + 16;
+                    break;
+            }
+            tmp = new byte[tmplen];
 
             System.out.println(state.toString());
             state.writeMessage(tmp, 0, ZEROLEN, 0, 0);
