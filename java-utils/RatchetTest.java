@@ -604,9 +604,11 @@ public class RatchetTest implements RatchetPayload.PayloadCallback {
         System.out.println("Generated send state for A->B:  " + sender);
         System.out.println("Generated rcvr state for B->A:  " + rcvr);
 
-        System.out.println("Reading msg 2 payload, length " + (len - 56));
-        tmp = new byte[len - 56];
-        System.arraycopy(itmp, 56, tmp, 0, len - 56);
+        // tmplen + 8 = 8 + 48 + hybrid + 16
+        int p1len = tmplen + 8;
+        System.out.println("Reading msg 2 payload, length " + (len - p1len));
+        tmp = new byte[len - p1len];
+        System.arraycopy(itmp, p1len, tmp, 0, len - p1len);
         System.out.println("Got encrypted payload from Bob:");
         System.out.println(HexDump.dump(tmp));
 
@@ -1067,7 +1069,7 @@ if (true) { socket.close(); return; }
         }
 
         System.out.println("msg 2 part 1 complete");
-        System.out.println("read msg 2, now calling split()");
+        System.out.println("wrote msg 2 part 1, now calling split()");
 
 
         // data phase KDF
